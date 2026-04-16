@@ -17,7 +17,16 @@ body {
   box-sizing: border-box;
   /* background: linear-gradient(135deg, #ffffff 0%, #87ceeb 100%); */
 }
-
+.meter-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #eef2ff;
+  color: #5355E0;
+  border-radius: 20px;
+  font-weight: 500;
+}
 .form-card {
   background: #ffffff;
   width: 100%;

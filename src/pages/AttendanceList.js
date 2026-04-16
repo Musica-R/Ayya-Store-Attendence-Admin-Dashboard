@@ -154,6 +154,7 @@ const AttendanceList = () => {
                 <th>Check In</th>
                 <th>Check Out</th>
                 <th>Status</th>
+                <th>Late By</th>
                 <th>Worked Hours</th>
                 <th>Shortfall / Overtime</th>
               </tr>
@@ -199,11 +200,10 @@ const AttendanceList = () => {
                     <td>
                       <div className="status-flex">
                         <span
-                          className={`status-pill ${
-                            record.type?.toLowerCase() === 'present'
-                              ? 'present'
-                              : 'absent'
-                          }`}
+                          className={`status-pill ${record.type?.toLowerCase() === 'present'
+                            ? 'present'
+                            : 'absent'
+                            }`}
                         >
                           {record.type || 'N/A'}
                         </span>
@@ -218,6 +218,12 @@ const AttendanceList = () => {
                         )}
                       </div>
                     </td>
+                    <td>
+                      {record.late_checkin === 1
+                        ? formatDuration(record.late_checkin_time)
+                        : '--'}
+                    </td>
+
 
                     {/* WORKED HOURS */}
                     <td>
