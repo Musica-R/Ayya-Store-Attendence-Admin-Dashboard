@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/HolidayForm.css';
-import Lottie from 'react-lottie';
+import Lottie from 'lottie-react';
 import animationData from '../LottieFiles/Confetti.json';
 import { IoAdd } from 'react-icons/io5';
 import { MdDeleteOutline } from 'react-icons/md';
@@ -44,14 +44,14 @@ const HolidayForm = () => {
     { label: 'December', value: '12' },
   ];
 
-  const defaultOptions = {
-    loop: true,
-    autoplay: true,
-    animationData: animationData,
-    rendererSettings: {
-      preserveAspectRatio: 'xMidYMid slice',
-    },
-  };
+  // const defaultOptions = {
+  //   loop: true,
+  //   autoplay: true,
+  //   animationData: animationData,
+  //   rendererSettings: {
+  //     preserveAspectRatio: 'xMidYMid slice',
+  //   },
+  // };
 
   /* ================= FETCH HOLIDAY ================= */
 
@@ -196,7 +196,7 @@ const HolidayForm = () => {
       } else {
         alert(
           'Failed to Send Holiday Notification: ' +
-            (result.message || 'Unknown error')
+          (result.message || 'Unknown error')
         );
       }
     } catch (error) {
@@ -224,7 +224,8 @@ const HolidayForm = () => {
       <div className="page-headers glass-panels">
         <div className="header-content">
           <div className="permission-title-group">
-            <Lottie options={defaultOptions} height={70} width={70} />
+            {/* <Lottie options={defaultOptions} height={70} width={70} /> */}
+            <Lottie animationData={animationData} loop={true} style={{ width: 70, height: 70 }} />
             <div>
               <h1>Holiday Records</h1>
               <p>
@@ -339,7 +340,7 @@ const HolidayForm = () => {
         )}
 
       <h2 className="form-title">List of Holiday</h2>
-      {}
+      { }
       <div className="card-container">
         {holidays.length === 0 ? (
           <div className="ll-center">

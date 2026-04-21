@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import '../styles/EmpList.css';
 import { FiEdit2, FiX, FiSave, FiSearch } from 'react-icons/fi';
-import Lottie from 'react-lottie';
-import animationData from '../LottieFiles/Employee Search.json';
+// import Lottie from 'react-lottie';
+// import animationData from '../LottieFiles/Employee Search.json';
+import Lottie from "lottie-react";
+import animationData from "../LottieFiles/Employee Search.json";
 
 const API_URL = 'https://store.mpdatahub.com/api/employee-List';
 const UPDATE_URL = 'https://store.mpdatahub.com/api/update-profile';
@@ -27,14 +29,14 @@ export default function EmpList() {
     fetchInactiveEmployees();
   }, []);
 
-  const defaultOptions = {
-    loop: true,
-    autoplay: true,
-    animationData: animationData,
-    rendererSettings: {
-      preserveAspectRatio: 'xMidYMid slice',
-    },
-  };
+  // const defaultOptions = {
+  //   loop: true,
+  //   autoplay: true,
+  //   animationData: animationData,
+  //   rendererSettings: {
+  //     preserveAspectRatio: 'xMidYMid slice',
+  //   },
+  // };
 
   const counts = {
     active: employees.length,
@@ -228,7 +230,8 @@ export default function EmpList() {
 
       <div className="emplist-header">
         <div className="emplist-title">
-          <Lottie options={defaultOptions} height={90} width={70} />
+          {/* <Lottie options={defaultOptions} height={90} width={70} /> */}
+           <Lottie animationData={animationData} loop={true}  style={{width: 90 , height: 70}}/>
           <div>
             <h1>Employee List</h1>
             <p>{employees.length} employees</p>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/RaiseTicket.css';
-import Lottie from 'react-lottie';
+import Lottie from 'lottie-react';
 import animationData from '../LottieFiles/Ticket.json';
 import { IoAdd } from 'react-icons/io5';
 import { createPortal } from 'react-dom';
@@ -62,14 +62,14 @@ const RaiseTicket = () => {
     },
   };
 
-  const defaultOptions = {
-    loop: true,
-    autoplay: true,
-    animationData: animationData,
-    rendererSettings: {
-      preserveAspectRatio: 'xMidYMid slice',
-    },
-  };
+  // const defaultOptions = {
+  //   loop: true,
+  //   autoplay: true,
+  //   animationData: animationData,
+  //   rendererSettings: {
+  //     preserveAspectRatio: 'xMidYMid slice',
+  //   },
+  // };
 
   // FORMAT TIME
   const formatTime = (timeString) => {
@@ -263,7 +263,7 @@ const RaiseTicket = () => {
       } else {
         alert(
           'Failed to Update Ticket Status: ' +
-            (result.message || 'Unknown error')
+          (result.message || 'Unknown error')
         );
       }
     } catch (error) {
@@ -358,7 +358,8 @@ const RaiseTicket = () => {
       <div className="page-headers glass-panels">
         <div className="header-content">
           <div className="permission-title-group">
-            <Lottie options={defaultOptions} height={70} width={70} />
+            {/* <Lottie options={defaultOptions} height={70} width={70} /> */}
+            <Lottie animationData={animationData} loop={true} style={{ width: 70, height: 70 }} />
             <div>
               <h1>Ticket Records</h1>
               <p>
@@ -563,20 +564,17 @@ const RaiseTicket = () => {
                       <td>{formatDate(record.date)}</td>
 
                       {/* CHECK IN */}
+
                       <td>
                         <div className="time-badge in">
-                          {record.type === 'clock_in'
-                            ? formatTime(record.time)
-                            : '--'}
+                          {record.type === 'clock_in' ? formatTime(record.time) : '--'}
                         </div>
                       </td>
 
                       {/* CHECK OUT */}
                       <td>
                         <div className="time-badge out">
-                          {record.type === 'clock_out'
-                            ? formatTime(record.time)
-                            : '--'}
+                          {record.type === 'clock_out' ? formatTime(record.time) : '--'}
                         </div>
                       </td>
 
@@ -587,13 +585,12 @@ const RaiseTicket = () => {
                       <td>
                         <div className="status-flexs">
                           <span
-                            className={`status-pills ${
-                              record.status?.toLowerCase() === 'approved'
+                            className={`status-pills ${record.status?.toLowerCase() === 'approved'
                                 ? 'present'
                                 : record.status?.toLowerCase() === 'rejected'
                                   ? 'absent'
                                   : 'pending'
-                            }`}
+                              }`}
                           >
                             {sc.icon} {sc.label}
                           </span>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/Notification.css';
-import Lottie from 'react-lottie';
+import Lottie from 'lottie-react';
 import animationData from '../LottieFiles/Notification Bell.json';
 import { IoAdd } from 'react-icons/io5';
 import { MdDeleteOutline } from 'react-icons/md';
@@ -21,14 +21,14 @@ const Notification = () => {
   const [notificationId, setNotificationId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const defaultOptions = {
-    loop: true,
-    autoplay: true,
-    animationData: animationData,
-    rendererSettings: {
-      preserveAspectRatio: 'xMidYMid slice',
-    },
-  };
+  // const defaultOptions = {
+  //   loop: true,
+  //   autoplay: true,
+  //   animationData: animationData,
+  //   rendererSettings: {
+  //     preserveAspectRatio: 'xMidYMid slice',
+  //   },
+  // };
 
   /* ================= FETCH NOTIFICATION ================= */
 
@@ -98,7 +98,7 @@ const Notification = () => {
       } else {
         alert(
           'Failed to create Notification: ' +
-            (result.message || 'Unknown error')
+          (result.message || 'Unknown error')
         );
       }
     } catch (error) {
@@ -130,7 +130,7 @@ const Notification = () => {
       } else {
         alert(
           'Failed to Delete Notification: ' +
-            (result.message || 'Unknown error')
+          (result.message || 'Unknown error')
         );
       }
     } catch (error) {
@@ -193,7 +193,8 @@ const Notification = () => {
       <div className="page-headers glass-panels">
         <div className="header-content">
           <div className="permission-title-group">
-            <Lottie options={defaultOptions} height={70} width={70} />
+            {/* <Lottie options={defaultOptions} height={70} width={70} /> */}
+            <Lottie animationData={animationData} loop={true} style={{ width: 70, height: 70 }} />
             {/* <IoIosNotificationsOutline className="ll-title-icon" /> */}
             <div>
               <h1>Notification Records</h1>

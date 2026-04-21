@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/PermissionList.css';
-import {
-  FiClock,
-  FiCheckCircle,
-  FiXCircle,
-  FiRefreshCw,
-  FiAlertCircle,
-  FiSearch,
-} from 'react-icons/fi';
-import Lottie from 'react-lottie';
-import animationData from '../LottieFiles/Allow Permission.json';
+import { FiClock, FiCheckCircle, FiXCircle, FiRefreshCw, FiAlertCircle, FiSearch } from 'react-icons/fi';
+// import Lottie from 'react-lottie';
+// import animationData from '../LottieFiles/Allow Permission.json';
+import Lottie from "lottie-react";
+import animationData from "../LottieFiles/Allow Permission.json";
 
 // const PERMISSION_LIST_API = 'https://store.mpdatahub.com/api/premissionlist';
 
@@ -27,14 +22,14 @@ const STATUS_CONFIG = {
   },
 };
 
-const defaultOptions = {
-  loop: true,
-  autoplay: true,
-  animationData: animationData,
-  rendererSettings: {
-    preserveAspectRatio: 'xMidYMid slice',
-  },
-};
+// const defaultOptions = {
+//   loop: true,
+//   autoplay: true,
+//   animationData: animationData,
+//   rendererSettings: {
+//     preserveAspectRatio: 'xMidYMid slice',
+//   },
+// };
 
 export default function PermissionList() {
   const [permissions, setPermissions] = useState([]);
@@ -193,7 +188,8 @@ export default function PermissionList() {
     <div className="permission-page fade-in">
       <div className="permission-header">
         <div className="permission-title-group">
-          <Lottie options={defaultOptions} height={70} width={70} />
+          {/* <Lottie options={defaultOptions} height={70} width={70} /> */}
+           <Lottie animationData={animationData} loop={true}  style={{width: 70 , height: 70}}/>
           <div>
             <h1>Permission List</h1>
             <p>Total {counts.all} permission requests found</p>
