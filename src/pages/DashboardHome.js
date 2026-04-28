@@ -167,9 +167,11 @@ const DashboardHome = () => {
                 </div>
 
                 <div className="stat-card glass-panel fade-in-up" style={{ animationDelay: '0.3s' }}>
+
                     <div className="stat-content" onClick={() => navigate("/admin/leave-list")}
                         style={{ cursor: "pointer" }}>
                         <h3>Absent</h3>
+                        
                         <div className="stat-value">{absent_count}</div>
                         <div className="stat-trend negative">Attention Required</div>
                     </div>

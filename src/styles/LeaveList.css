@@ -37,6 +37,7 @@
   flex-shrink: 0;
 }
 
+
 .leavelist-title h1 {
   margin: 0;
   font-size: 24px;
@@ -406,8 +407,8 @@
 .ll-reason-text {
   font-size: 13px;
   color: #64748b;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
+  /* display: -webkit-box;
+  -webkit-line-clamp: 10; */
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
