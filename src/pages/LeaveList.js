@@ -41,6 +41,7 @@ export default function LeaveList() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  
 
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1);
