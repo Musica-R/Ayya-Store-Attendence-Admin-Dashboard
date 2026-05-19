@@ -14,6 +14,19 @@ body {
     position: relative;
 }
 
+.brand-section {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.brand-logo {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
 /* ======================== SIDEBAR ======================== */
 .sidebar {
     width: 260px;

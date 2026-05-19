@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet} from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { FiHome, FiUserPlus, FiLogOut, FiCalendar, FiUsers, FiMenu, FiX, FiFileText, FiShield } from 'react-icons/fi';
 import '../styles/AdminLayout.css';
 import { BsSuitcase2 } from 'react-icons/bs';
 import { MdOutlineNotificationsActive } from 'react-icons/md';
 import { GoOrganization } from 'react-icons/go';
 import { IoTicketOutline } from 'react-icons/io5';
+import logo from "../assets/logo.png";
 
 const AdminLayout = () => {
-   
+
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const handleLogout = () => {
@@ -26,7 +27,12 @@ const AdminLayout = () => {
                 <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
                     <FiMenu />
                 </button>
-                <h2 className="mobile-brand">Admin Panel</h2>
+
+                <div className="brand-section">
+                    <img src={logo} alt="Logo" className="brand-logo" />
+                    <h2 className="mobile-brand">Admin Panel</h2>
+                </div>
+
             </div>
 
             {/* Overlay for mobile */}
@@ -36,7 +42,12 @@ const AdminLayout = () => {
 
             <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
                 <div className="sidebar-header">
-                    <h2>Admin Panel</h2>
+
+                     <div className="brand-section">
+                        <img src={logo} alt="Logo" className="brand-logo" />
+                        <h2>Admin Panel</h2>
+                    </div>
+
                     <button className="sidebar-close-btn" onClick={closeSidebar}>
                         <FiX />
                     </button>
