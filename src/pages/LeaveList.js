@@ -41,7 +41,7 @@ export default function LeaveList() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  
+
 
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1);
@@ -52,7 +52,7 @@ export default function LeaveList() {
     month: currentMonth,
     year: currentYear,
   });
-  
+
 
   const monthOptions = [
     { label: 'January', value: '1' },
@@ -107,32 +107,6 @@ export default function LeaveList() {
     fetchLeaves();
   }, [dateFilter]);
 
-  // const fetchLeaves = async () => {
-  //   try {
-  //     setLoading(true);
-  //     setError(null);
-
-  //     const res = await fetch(
-  //       `https://store.mpdatahub.com/api/leave-list?user_id=${dateFilter.user_id}&month=${dateFilter.month}&year=${dateFilter.year}`
-  //     );
-  //     const json = await res.json();
-
-  //     if (json.success) {
-  //       setLeaves(json.data);
-  //       setMeta({
-  //         month: json.month,
-  //         total: json.total_leaves,
-  //       });
-  //     } else {
-  //       setError('Failed to load leave records.');
-  //     }
-  //   } catch (err) {
-  //     setError('Network error. Please try again.');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const updateStatus = async (leaveId, newStatus) => {
     if (updatingId) return;
 
@@ -175,6 +149,7 @@ export default function LeaveList() {
       (l.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (l.empid || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (l.reason || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (l.branch_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (l.leave_date || '').includes(searchTerm);
 
     return matchStatus && matchSearch;
@@ -209,6 +184,95 @@ export default function LeaveList() {
     return halfday.charAt(0).toUpperCase() + halfday.slice(1);
   }
 
+  /* ---------------- GROUP BY BRANCH ---------------- */
+
+  const groupByBranch = (list) => {
+    const groups = {};
+
+    list.forEach((leave) => {
+      const key = leave.branch_id ?? 'unassigned';
+
+      if (!groups[key]) {
+        groups[key] = {
+          branch_id: leave.branch_id,
+          branch_name: leave.branch_name || 'Unassigned Branch',
+          items: [],
+        };
+      }
+      groups[key].items.push(leave);
+    });
+
+    return Object.values(groups);
+  };
+
+  const renderLeaveRow = (leave, idx) => {
+    const sc = STATUS_CONFIG[leave.status] || STATUS_CONFIG.pending;
+    const isUpdating = updatingId === leave.id;
+
+    return (
+      <tr key={leave.id} className="ll-row">
+        <td className="ll-idx">{idx + 1}</td>
+
+        <td className="ll-id-cell">
+          <span className="ll-id-badge">#{leave.id}</span>
+        </td>
+
+        <td>
+          <div className="ll-emp-info">
+            <span className="ll-name">{leave.name}</span>
+            <span className="ll-empid">{leave.empid}</span>
+          </div>
+        </td>
+
+        <td className="ll-date">
+          {formatDate(leave.leave_date)}
+        </td>
+
+        <td className="ll-reason-cell">
+          <div className="ll-reason-text" title={leave.reason}>
+            {leave.reason || '—'}
+          </div>
+        </td>
+
+        <td className="ll-date ll-dim">
+          {formatDate(leave.created_at)}
+        </td>
+
+        <td>{formatDuration(leave.duration)}</td>
+
+        <td>{formatHalfDay(leave.half_day)}</td>
+
+        <td>
+          <span className={`ll-status ${sc.cls}`}>
+            {sc.icon} {sc.label}
+          </span>
+        </td>
+
+        <td className="ll-txt-center">
+          {leave.status === 'pending' ? (
+            <select
+              className="ll-status-dropdown"
+              value={leave.status || 'pending'}
+              disabled={isUpdating}
+              onChange={(e) =>
+                updateStatus(leave.id, e.target.value)
+              }
+            >
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          ) : (
+            <span className="ll-status-fixed">
+              {' '}
+              {sc.icon} {sc.label}
+            </span>
+          )}
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="leavelist-page">
       <div className="leavelist-header">
@@ -231,7 +295,7 @@ export default function LeaveList() {
             <input
               type="text"
               className="ll-search"
-              placeholder="Search by ID, name, emp id..."
+              placeholder="Search by ID, name, emp id, branch..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -350,95 +414,41 @@ export default function LeaveList() {
               <p>No leave records found matching your criteria.</p>
             </div>
           ) : (
-            <div className="ll-table-wrap">
-              <table className="ll-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Leave ID</th>
-                    <th>Employee Details</th>
-                    <th>Leave Date</th>
-                    <th>Reason</th>
-                    <th>Applied On</th>
-                    <th>Leave Duration</th>
-                    <th>Session</th>
-                    <th>Status</th>
-                    <th className="ll-txt-center">Actions</th>
-                  </tr>
-                </thead>
+            groupByBranch(filtered).map((group) => (
+              <div className="branch-section" key={group.branch_id ?? 'unassigned'}>
+                <div className="branch-section-header">
+                  <span className="branch-id-badge">
+                    Branch {group.branch_id ?? '-'}
+                  </span>
+                  <h2 className="branch-section-title">{group.branch_name}</h2>
+                  <span className="branch-section-tag">Leave Records</span>
+                  <span className="branch-section-count">{group.items.length}</span>
+                </div>
 
-                <tbody>
-                  {filtered.map((leave, idx) => {
-                    const sc =
-                      STATUS_CONFIG[leave.status] || STATUS_CONFIG.pending;
-                    const isUpdating = updatingId === leave.id;
-
-                    return (
-                      <tr key={leave.id} className="ll-row">
-                        <td className="ll-idx">{idx + 1}</td>
-
-                        <td className="ll-id-cell">
-                          <span className="ll-id-badge">#{leave.id}</span>
-                        </td>
-
-                        <td>
-                          <div className="ll-emp-info">
-                            <span className="ll-name">{leave.name}</span>
-                            <span className="ll-empid">{leave.empid}</span>
-                          </div>
-                        </td>
-
-                        <td className="ll-date">
-                          {formatDate(leave.leave_date)}
-                        </td>
-
-                        <td className="ll-reason-cell">
-                          <div className="ll-reason-text" title={leave.reason}>
-                            {leave.reason || '—'}
-                          </div>
-                        </td>
-
-                        <td className="ll-date ll-dim">
-                          {formatDate(leave.created_at)}
-                        </td>
-
-                        <td>{formatDuration(leave.duration)}</td>
-
-                        <td>{formatHalfDay(leave.half_day)}</td>
-
-                        <td>
-                          <span className={`ll-status ${sc.cls}`}>
-                            {sc.icon} {sc.label}
-                          </span>
-                        </td>
-
-                        <td className="ll-txt-center">
-                          {leave.status === 'pending' ? (
-                            <select
-                              className="ll-status-dropdown"
-                              value={leave.status || 'pending'}
-                              disabled={isUpdating}
-                              onChange={(e) =>
-                                updateStatus(leave.id, e.target.value)
-                              }
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="approved">Approved</option>
-                              <option value="rejected">Rejected</option>
-                            </select>
-                          ) : (
-                            <span className="ll-status-fixed">
-                              {' '}
-                              {sc.icon} {sc.label}
-                            </span>
-                          )}
-                        </td>
+                <div className="ll-table-wrap">
+                  <table className="ll-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Leave ID</th>
+                        <th>Employee Details</th>
+                        <th>Leave Date</th>
+                        <th>Reason</th>
+                        <th>Applied On</th>
+                        <th>Leave Duration</th>
+                        <th>Session</th>
+                        <th>Status</th>
+                        <th className="ll-txt-center">Actions</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+
+                    <tbody>
+                      {group.items.map((leave, idx) => renderLeaveRow(leave, idx))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))
           )}
         </>
       )}

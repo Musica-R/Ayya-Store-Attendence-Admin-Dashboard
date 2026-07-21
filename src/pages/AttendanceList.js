@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/AttendanceList.css';
-// import Lottie from 'react-lottie';
-// import animationData from '../LottieFiles/Completing Tasks.json';
 import * as XLSX from "xlsx-js-style";
 import Lottie from "lottie-react";
 import animationData from "../LottieFiles/Completing Tasks.json";
-
-
 
 const AttendanceList = () => {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -29,15 +25,6 @@ const AttendanceList = () => {
     const { value } = e.target;
     setDateFilter(value);
   };
-
-  // const defaultOptions = {
-  //   loop: true,
-  //   autoplay: true,
-  //   animationData: animationData,
-  //   rendererSettings: {
-  //     preserveAspectRatio: 'xMidYMid slice',
-  //   },
-  // };
 
   useEffect(() => {
     let isMounted = true;
@@ -197,6 +184,7 @@ const AttendanceList = () => {
   const exportDailyReport = () => {
     const formatted = attendanceData.map((item) => ({
       Name: item.name,
+      Branch: item.branch_name,
       Date: item.attendance_date,
       CheckIn: item.check_in,
       CheckOut: item.check_out,
@@ -273,14 +261,6 @@ const AttendanceList = () => {
     setMonth(new Date().getMonth() + 1);
     setYear(new Date().getFullYear());
   };
-  if (loading) {
-    return (
-      <div className="attendance-page loading-container">
-        <div className="loader-pulse"></div>
-        <p>Loading attendance records...</p>
-      </div>
-    );
-  }
 
   // FORMAT WORKED HOURS
   const formatDuration = (timeString) => {
@@ -301,6 +281,112 @@ const AttendanceList = () => {
     return `${hours} hr ${minutes} min`;
   };
 
+  /* ---------------- GROUP BY BRANCH ---------------- */
+  const groupByBranch = (list) => {
+    const groups = {};
+
+    list.forEach((record) => {
+      const key = record.branch_id ?? 'unassigned';
+
+      if (!groups[key]) {
+        groups[key] = {
+          branch_id: record.branch_id,
+          branch_name: record.branch_name || 'Unassigned Branch',
+          items: [],
+        };
+      }
+      groups[key].items.push(record);
+    });
+
+    return Object.values(groups);
+  };
+
+  const renderAttendanceRow = (record, index) => (
+    <tr key={`${record.name}-${record.attendance_date}-${index}`} className="table-row">
+      {/* EMPLOYEE */}
+      <td>
+        <div className="employee-cell">
+          <div className="avatar-circle">
+            {getInitials(record.name)}
+          </div>
+
+          <span className="employee-name">{record.name}</span>
+        </div>
+      </td>
+
+      {/* DATE */}
+      <td>{formatDate(record.attendance_date)}</td>
+
+      {/* CHECK IN */}
+      <td>
+        <div className="time-badge in">
+          {record.type === 'ABSENT'
+            ? '--'
+            : formatTime(record.check_in)}
+        </div>
+      </td>
+
+      {/* CHECK OUT */}
+      <td>
+        <div className="time-badge out">
+          {record.type === 'ABSENT'
+            ? '--'
+            : formatTime(record.check_out)}
+        </div>
+      </td>
+
+      {/* STATUS */}
+      <td>
+        <div className="status-flex">
+          <span
+            className={`status-pill ${record.type?.toLowerCase() === 'present'
+              ? 'present'
+              : 'absent'
+              }`}
+          >
+            {record.type || 'N/A'}
+          </span>
+
+          {record.late_checkin === 1 && (
+            <span
+              className="late-indicator"
+              title={`Late by ${record.late_checkin_time}`}
+            >
+              Late
+            </span>
+          )}
+        </div>
+      </td>
+      <td>
+        {record.late_checkin === 1
+          ? formatDuration(record.late_checkin_time)
+          : '--'}
+      </td>
+
+      {/* WORKED HOURS */}
+      <td>
+        <span className="hours-text">
+          {formatDuration(record.worked_hours)}
+        </span>
+      </td>
+
+      {/* SHORTFALL / OVERTIME */}
+      <td>
+        <span className="hours-text">
+          {formatDuration(record.overtimed_hours)}
+        </span>
+      </td>
+    </tr>
+  );
+
+  if (loading) {
+    return (
+      <div className="attendance-page loading-container">
+        <div className="loader-pulse"></div>
+        <p>Loading attendance records...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="attendance-page fade-in-up">
@@ -308,7 +394,6 @@ const AttendanceList = () => {
       <div className="page-header glass-panel">
         <div className="header-content">
           <div className="permission-title-group">
-            {/* <Lottie options={defaultOptions} height={70} width={70} /> */}
             <Lottie animationData={animationData} loop={true} style={{ width: 70, height: 70 }} />
             <div>
               <h1>Attendance Records</h1>
@@ -375,114 +460,59 @@ const AttendanceList = () => {
 
       </div>
 
-      {/* TABLE */}
-      <div className="attendance-content glass-panel">
-        <div className="table-responsive">
-          <table className="elegant-table">
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Date</th>
-                <th>Check In</th>
-                <th>Check Out</th>
-                <th>Status</th>
-                <th>Late By</th>
-                <th>Worked Hours</th>
-                <th>Shortfall / Overtime</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {attendanceData.length > 0 ? (
-                attendanceData.map((record , index) => (
-                <tr key={`${record.name}-${record.attendance_date}-${index}`} className="table-row">
-                    {/* EMPLOYEE */}
-                    <td>
-                      <div className="employee-cell">
-                        <div className="avatar-circle">
-                          {getInitials(record.name)}
-                        </div>
-
-                        <span className="employee-name">{record.name}</span>
-                      </div>
-                    </td>
-
-                    {/* DATE */}
-                    <td>{formatDate(record.attendance_date)}</td>
-
-                    {/* CHECK IN */}
-                    <td>
-                      <div className="time-badge in">
-                        {record.type === 'ABSENT'
-                          ? '--'
-                          : formatTime(record.check_in)}
-                      </div>
-                    </td>
-
-                    {/* CHECK OUT */}
-                    <td>
-                      <div className="time-badge out">
-                        {record.type === 'ABSENT'
-                          ? '--'
-                          : formatTime(record.check_out)}
-                      </div>
-                    </td>
-
-                    {/* STATUS */}
-                    <td>
-                      <div className="status-flex">
-                        <span
-                          className={`status-pill ${record.type?.toLowerCase() === 'present'
-                            ? 'present'
-                            : 'absent'
-                            }`}
-                        >
-                          {record.type || 'N/A'}
-                        </span>
-
-                        {record.late_checkin === 1 && (
-                          <span
-                            className="late-indicator"
-                            title={`Late by ${record.late_checkin_time}`}
-                          >
-                            Late
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      {record.late_checkin === 1
-                        ? formatDuration(record.late_checkin_time)
-                        : '--'}
-                    </td>
-
-
-                    {/* WORKED HOURS */}
-                    <td>
-                      <span className="hours-text">
-                        {formatDuration(record.worked_hours)}
-                      </span>
-                    </td>
-
-                    {/* SHORTFALL / OVERTIME */}
-                    <td>
-                      <span className="hours-text">
-                        {formatDuration(record.overtimed_hours)}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+      {/* TABLES GROUPED BY BRANCH */}
+      {attendanceData.length === 0 ? (
+        <div className="attendance-content glass-panel">
+          <div className="table-responsive">
+            <table className="elegant-table">
+              <tbody>
                 <tr>
-                  <td colSpan="7" className="empty-state">
+                  <td className="empty-state">
                     No attendance records found for this period.
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        groupByBranch(attendanceData).map((group) => (
+          <div className="branch-section" key={group.branch_id ?? 'unassigned'}>
+            <div className="branch-section-header">
+              <span className="branch-id-badge">
+                Branch {group.branch_id ?? '-'}
+              </span>
+              <h2 className="branch-section-title">{group.branch_name}</h2>
+              <span className="branch-section-tag">Attendance Records</span>
+              <span className="branch-section-count">{group.items.length}</span>
+            </div>
+
+            <div className="attendance-content glass-panel">
+              <div className="table-responsive">
+                <table className="elegant-table">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Date</th>
+                      <th>Check In</th>
+                      <th>Check Out</th>
+                      <th>Status</th>
+                      <th>Late By</th>
+                      <th>Worked Hours</th>
+                      <th>Shortfall / Overtime</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {group.items.map((record, index) => renderAttendanceRow(record, index))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+
       {showModal && (
         <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>

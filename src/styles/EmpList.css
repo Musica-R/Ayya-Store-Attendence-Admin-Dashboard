@@ -78,6 +78,65 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
+/* BRANCH SECTIONS */
+
+.branch-section {
+  margin-bottom: 34px;
+}
+
+.branch-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  flex-wrap: wrap;
+}
+
+.branch-id-badge {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.branch-section-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  flex: 1;
+}
+
+.branch-section-tag {
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.branch-section-count {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  min-width: 26px;
+  text-align: center;
+}
+
 /* GRID */
 
 .emp-grid {
@@ -397,7 +456,7 @@ input:checked + .slider:before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 0px 24px;
   border-bottom: 1px solid #f1f5f9;
 }
 
@@ -421,10 +480,10 @@ input:checked + .slider:before {
 /* FORM */
 
 .modal-form {
-  padding: 22px 24px;
+  padding: 2px 24px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 8px;
 }
 
 .modal-form input {
@@ -452,7 +511,7 @@ input:checked + .slider:before {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 18px 24px;
+  padding: 8px 24px;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -686,5 +745,14 @@ input:checked + .slider:before {
   .btn-save {
     width: 100%;
     justify-content: center;
+  }
+
+  .branch-section-title {
+    font-size: 15px;
+  }
+
+  .branch-section-header {
+    padding: 8px 12px;
+    gap: 8px;
   }
 }

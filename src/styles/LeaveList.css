@@ -299,6 +299,64 @@
   margin-left: auto;
 }
 
+/* ======================== BRANCH SECTIONS ======================== */
+.branch-section {
+  margin-bottom: 30px;
+}
+
+.branch-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  flex-wrap: wrap;
+}
+
+.branch-id-badge {
+  background: linear-gradient(135deg, #0f766e, #0d9488);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.branch-section-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  flex: 1;
+}
+
+.branch-section-tag {
+  background: #f0fdfa;
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.branch-section-count {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  min-width: 26px;
+  text-align: center;
+}
+
 /* ======================== TABLE ======================== */
 .ll-table-wrap {
   background: #fff;
@@ -684,6 +742,15 @@
   .ll-tab {
     font-size: 12px;
     padding: 8px 14px;
+  }
+
+  .branch-section-header {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .branch-section-title {
+    font-size: 15px;
   }
 
   /* Switch to card layout */

@@ -101,6 +101,26 @@ const RaiseTicket = () => {
     return name.substring(0, 2).toUpperCase();
   };
 
+  /* ================= GROUP BY BRANCH ================= */
+  const groupByBranch = (list) => {
+    const groups = {};
+
+    list.forEach((record) => {
+      const key = record.branch_id ?? 'unassigned';
+
+      if (!groups[key]) {
+        groups[key] = {
+          branch_id: record.branch_id,
+          branch_name: record.branch_name || 'Unassigned Branch',
+          items: [],
+        };
+      }
+      groups[key].items.push(record);
+    });
+
+    return Object.values(groups);
+  };
+
   /* ================= FETCH EMPLOYEES ================= */
   const fetchEmployees = async () => {
     try {
@@ -259,6 +279,94 @@ const RaiseTicket = () => {
     } finally {
       setNotificationId(null);
     }
+  };
+
+  /* ================= RENDER TICKET ROW ================= */
+  const renderTicketRow = (record) => {
+    const sc = STATUS_CONFIG[record.status] || STATUS_CONFIG.pending;
+    const isUpdating = updatingId === record.id;
+
+    return (
+      <tr key={record.id} className="rt-table-row">
+        {/* EMPLOYEE */}
+        <td>
+          <div className="rt-emp-cell">
+            <div className="rt-avatar">{getInitials(record.name || record.user?.name)}</div>
+            <div className="rt-emp-info">
+              <span className="rt-emp-name">
+                {record.name || record.user?.name || 'Unknown User'}
+              </span>
+              {record.empid && <span className="rt-emp-id">{record.empid}</span>}
+            </div>
+          </div>
+        </td>
+
+        {/* DATE */}
+        <td className="rt-date-cell">{formatDate(record.date)}</td>
+
+        {/* CHECK IN */}
+        <td>
+          <span className={`rt-time-badge rt-time-in ${record.type !== 'clock_in' ? 'rt-time-nil' : ''}`}>
+            {record.type === 'clock_in' ? formatTime(record.time) : '--'}
+          </span>
+        </td>
+
+        {/* CHECK OUT */}
+        <td>
+          <span className={`rt-time-badge rt-time-out ${record.type !== 'clock_out' ? 'rt-time-nil' : ''}`}>
+            {record.type === 'clock_out' ? formatTime(record.time) : '--'}
+          </span>
+        </td>
+
+        {/* REASON */}
+        <td className="rt-reason-cell">{record.reason}</td>
+
+        {/* STATUS */}
+        <td>
+          <div className="rt-status-cell">
+            <span
+              className={`rt-status-pill ${
+                record.status?.toLowerCase() === 'approved'
+                  ? 'rt-status-approved'
+                  : record.status?.toLowerCase() === 'rejected'
+                  ? 'rt-status-rejected'
+                  : 'rt-status-pending'
+              }`}
+            >
+              {sc.icon}&nbsp;{sc.label}
+            </span>
+            {record.late_checkin === 1 && (
+              <span
+                className="rt-late-badge"
+                title={`Late by ${record.late_checkin_time}`}
+              >
+                Late
+              </span>
+            )}
+          </div>
+        </td>
+
+        {/* ACTIONS */}
+        <td style={{ textAlign: 'center' }}>
+          {record.status === 'pending' ? (
+            <select
+              className="rt-action-select"
+              value={record.status}
+              disabled={isUpdating}
+              onChange={(e) => handleStatusUpdate(record.id, e.target.value)}
+            >
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          ) : (
+            <span className="rt-status-fixed">
+              {sc.icon}&nbsp;{sc.label}
+            </span>
+          )}
+        </td>
+      </tr>
+    );
   };
 
   /* ================= LOADING STATE ================= */
@@ -428,120 +536,60 @@ const RaiseTicket = () => {
           document.body
         )}
 
-      {/* ── TABLE SECTION ── */}
+      {/* ── TABLE SECTION (GROUPED BY BRANCH) ── */}
       <div className="rt-section">
         <h2 className="rt-section-title">Raised Ticket History</h2>
-        <div className="rt-table-card">
-          <div className="rt-table-responsive">
-            <table className="rt-table">
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Date</th>
-                  <th>Check In</th>
-                  <th>Check Out</th>
-                  <th>Reason</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {raiseTicket.length > 0 ? (
-                  raiseTicket.map((record) => {
-                    const sc = STATUS_CONFIG[record.status] || STATUS_CONFIG.pending;
-                    const isUpdating = updatingId === record.id;
 
-                    return (
-                      <tr key={record.id} className="rt-table-row">
-                        {/* EMPLOYEE */}
-                        <td>
-                          <div className="rt-emp-cell">
-                            <div className="rt-avatar">{getInitials(record.user?.name)}</div>
-                            <span className="rt-emp-name">
-                              {record.user?.name || 'Unknown User'}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* DATE */}
-                        <td className="rt-date-cell">{formatDate(record.date)}</td>
-
-                        {/* CHECK IN */}
-                        <td>
-                          <span className={`rt-time-badge rt-time-in ${record.type !== 'clock_in' ? 'rt-time-nil' : ''}`}>
-                            {record.type === 'clock_in' ? formatTime(record.time) : '--'}
-                          </span>
-                        </td>
-
-                        {/* CHECK OUT */}
-                        <td>
-                          <span className={`rt-time-badge rt-time-out ${record.type !== 'clock_out' ? 'rt-time-nil' : ''}`}>
-                            {record.type === 'clock_out' ? formatTime(record.time) : '--'}
-                          </span>
-                        </td>
-
-                        {/* REASON */}
-                        <td className="rt-reason-cell">{record.reason}</td>
-
-                        {/* STATUS */}
-                        <td>
-                          <div className="rt-status-cell">
-                            <span
-                              className={`rt-status-pill ${
-                                record.status?.toLowerCase() === 'approved'
-                                  ? 'rt-status-approved'
-                                  : record.status?.toLowerCase() === 'rejected'
-                                  ? 'rt-status-rejected'
-                                  : 'rt-status-pending'
-                              }`}
-                            >
-                              {sc.icon}&nbsp;{sc.label}
-                            </span>
-                            {record.late_checkin === 1 && (
-                              <span
-                                className="rt-late-badge"
-                                title={`Late by ${record.late_checkin_time}`}
-                              >
-                                Late
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* ACTIONS */}
-                        <td style={{ textAlign: 'center' }}>
-                          {record.status === 'pending' ? (
-                            <select
-                              className="rt-action-select"
-                              value={record.status}
-                              disabled={isUpdating}
-                              onChange={(e) => handleStatusUpdate(record.id, e.target.value)}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="approved">Approved</option>
-                              <option value="rejected">Rejected</option>
-                            </select>
-                          ) : (
-                            <span className="rt-status-fixed">
-                              {sc.icon}&nbsp;{sc.label}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+        {raiseTicket.length === 0 ? (
+          <div className="rt-table-card">
+            <div className="rt-table-responsive">
+              <table className="rt-table">
+                <tbody>
                   <tr>
-                    <td colSpan="7" className="rt-empty-state">
+                    <td className="rt-empty-state">
                       <div className="rt-empty-icon">📭</div>
                       <p>No ticket records found for this period.</p>
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        ) : (
+          groupByBranch(raiseTicket).map((group) => (
+            <div className="branch-section" key={group.branch_id ?? 'unassigned'}>
+              <div className="branch-section-header">
+                <span className="branch-id-badge">
+                  Branch {group.branch_id ?? '-'}
+                </span>
+                <h2 className="branch-section-title">{group.branch_name}</h2>
+                <span className="branch-section-tag">Ticket Records</span>
+                <span className="branch-section-count">{group.items.length}</span>
+              </div>
+
+              <div className="rt-table-card">
+                <div className="rt-table-responsive">
+                  <table className="rt-table">
+                    <thead>
+                      <tr>
+                        <th>Employee</th>
+                        <th>Date</th>
+                        <th>Check In</th>
+                        <th>Check Out</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'center' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.items.map((record) => renderTicketRow(record))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* ── DELETE CONFIRM MODAL ── */}
