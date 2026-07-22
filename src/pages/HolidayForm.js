@@ -18,7 +18,8 @@ const HolidayForm = () => {
 
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1);
-  const currentYear = now.getFullYear();
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   const [dateFilter, setDateFilter] = useState({
     month: currentMonth,
@@ -205,9 +206,15 @@ const HolidayForm = () => {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
             </svg>
-            <select name="year" value={dateFilter.year} onChange={handleDate}>
-              {[2026, 2025, 2024, 2023].map((y) => (
-                <option key={y} value={y}>{y}</option>
+            <select
+              name="year"
+              value={dateFilter.year}
+              onChange={handleDate}
+            >
+              {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
               ))}
             </select>
           </div>

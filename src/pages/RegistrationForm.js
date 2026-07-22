@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiArrowLeft } from 'react-icons/fi';
 import '../styles/RegistrationForm.css';
 
+const API_BASE = 'https://store.mpdatahub.com/api';
+
 const RegistrationForm = () => {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: '',
     empid: '',
@@ -30,6 +36,12 @@ const RegistrationForm = () => {
 
   const [passwordError, setPasswordError] = useState('');
 
+  /* ================= POSITIONS STATE ================= */
+  // Only kept here so the employee form's Position dropdown has data.
+  // Adding/editing/deleting positions now lives on the Company Details page.
+  const [positions, setPositions] = useState([]);
+  const [loadingPositions, setLoadingPositions] = useState(false);
+
   /* ================= FETCH COMPANIES ================= */
 
   useEffect(() => {
@@ -37,9 +49,7 @@ const RegistrationForm = () => {
       setLoadingCompanies(true);
 
       try {
-        const response = await fetch(
-          'https://store.mpdatahub.com/api/list-company'
-        );
+        const response = await fetch(`${API_BASE}/list-company`);
         const result = await response.json();
         if (result.success) {
           setCompanies(result.data);
@@ -60,7 +70,7 @@ const RegistrationForm = () => {
       setLoadingRoles(true);
 
       try {
-        const response = await fetch('https://store.mpdatahub.com/api/roles');
+        const response = await fetch(`${API_BASE}/roles`);
         const result = await response.json();
 
         if (result.success) {
@@ -85,13 +95,12 @@ const RegistrationForm = () => {
 
         try {
           const response = await fetch(
-            `https://store.mpdatahub.com/api/get-branch-for-company?company_id=${formData.company_id}`
+            `${API_BASE}/get-branch-for-company?company_id=${formData.company_id}`
           );
 
           const result = await response.json();
 
           if (result.success) {
-            console.log(result);
             setBranches(result.data);
           } else {
             setBranches([]);
@@ -110,7 +119,31 @@ const RegistrationForm = () => {
     }
   }, [formData.company_id]);
 
-  /* ================= HANDLE INPUT ================= */
+  /* ================= FETCH POSITIONS ================= */
+  // Read-only here — just populates the dropdown.
+
+  useEffect(() => {
+    const fetchPositions = async () => {
+      setLoadingPositions(true);
+
+      try {
+        const response = await fetch(`${API_BASE}/positions`);
+        const result = await response.json();
+
+        if (result.status) {
+          setPositions(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching positions:', error);
+      }
+
+      setLoadingPositions(false);
+    };
+
+    fetchPositions();
+  }, []);
+
+  /* ================= HANDLE EMPLOYEE INPUT ================= */
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
@@ -129,7 +162,7 @@ const RegistrationForm = () => {
     }
   };
 
-  /* ================= FORM SUBMIT ================= */
+  /* ================= EMPLOYEE FORM SUBMIT ================= */
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -150,7 +183,7 @@ const RegistrationForm = () => {
     });
 
     try {
-      const response = await fetch('https://store.mpdatahub.com/api/add-user', {
+      const response = await fetch(`${API_BASE}/add-user`, {
         method: 'POST',
         body: submitData,
       });
@@ -158,7 +191,6 @@ const RegistrationForm = () => {
       const result = await response.json();
 
       if (response.ok) {
-        console.log(result);
         alert(result.message || 'User registered successfully!');
 
         setFormData({
@@ -180,9 +212,7 @@ const RegistrationForm = () => {
         });
       } else {
         if (result.data) {
-          let errorMessages = Object.values(result.data)
-            .flat()
-            .join('\n');
+          let errorMessages = Object.values(result.data).flat().join('\n');
 
           alert(errorMessages);
         } else {
@@ -195,10 +225,25 @@ const RegistrationForm = () => {
     }
   };
 
+  // Only positions that are Active + isActive show up as selectable
+  // options on the Employee form
+  const selectablePositions = positions.filter(
+    (p) => p.islotlog === 'Active' && (p.isActive === true || p.isActive === 1)
+  );
+
   return (
     <div className="form-container">
       <div className="form-card">
-        <h2 className="form-title">Employee Registration</h2>
+        <div className="form-header">
+          <button
+            type="button"
+            className="btn-back"
+            onClick={() => navigate('/admin/emp-list')}
+          >
+            <FiArrowLeft /> Back
+          </button>
+          <h2 className="form-title">Employee Registration</h2>
+        </div>
 
         <form onSubmit={handleSubmit} className="registration-form">
           {/* NAME */}
@@ -299,13 +344,23 @@ const RegistrationForm = () => {
 
           <div className="form-group">
             <label>Position</label>
-            <input
-              type="text"
+
+            <select
               name="position"
               value={formData.position}
               onChange={handleChange}
               required
-            />
+            >
+              <option value="">
+                {loadingPositions ? 'Loading...' : 'Select Position'}
+              </option>
+
+              {selectablePositions.map((pos) => (
+                <option key={pos.id} value={pos.id}>
+                  {pos.position_name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* ROLE */}
@@ -438,8 +493,7 @@ const RegistrationForm = () => {
 
           <div className="form-actions full-width">
             <button type="submit" className="submit-btn">
-              {' '}
-              Register Employee{' '}
+              Register Employee
             </button>
           </div>
         </form>

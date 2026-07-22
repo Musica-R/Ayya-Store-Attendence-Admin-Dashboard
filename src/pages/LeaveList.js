@@ -10,7 +10,10 @@ import {
   FiSearch,
 } from 'react-icons/fi';
 
-// const LEAVE_LIST_API = `https://store.mpdatahub.com/api/leave-list`;
+const COMPANY_API = 'https://store.mpdatahub.com/api/list-company';
+const BRANCH_API = 'https://store.mpdatahub.com/api/get-branch-for-company?company_id=';
+
+const LEAVE_LIST_BASE = 'https://store.mpdatahub.com/api/leave-list-branch';
 const UPDATE_STATUS_API = 'https://store.mpdatahub.com/api/update-Leave-status';
 
 const STATUS_CONFIG = {
@@ -35,24 +38,33 @@ function formatDate(dateStr) {
 
 export default function LeaveList() {
   const [leaves, setLeaves] = useState([]);
-  const [meta, setMeta] = useState({ month: '', total: 0 });
+  const [meta, setMeta] = useState({ month: '', total: 0, branch_name: '' });
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
+  // Company / Branch dropdown state
+  const [companies, setCompanies] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
 
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1);
   const currentYear = now.getFullYear();
+
+  const years = Array.from(
+    { length: 11 }, // 5 previous + current + 5 next
+    (_, i) => currentYear - 5 + i
+  );
 
   const [dateFilter, setDateFilter] = useState({
     user_id: '',
     month: currentMonth,
     year: currentYear,
   });
-
 
   const monthOptions = [
     { label: 'January', value: '1' },
@@ -78,14 +90,89 @@ export default function LeaveList() {
     }));
   };
 
+  /* ---------------- INITIAL LOAD: companies ---------------- */
+
   useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  /* ---------------- FETCH COMPANIES ---------------- */
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(COMPANY_API);
+      const json = await res.json();
+
+      if (json.success) {
+        setCompanies(json.data);
+
+        if (json.data.length > 0) {
+          const firstCompany = json.data[0].id;
+          setSelectedCompany(firstCompany);
+          fetchBranches(firstCompany, true);
+        } else {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    } catch (err) {
+      console.log(err);
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- FETCH BRANCHES FOR A COMPANY ---------------- */
+
+  const fetchBranches = async (companyId, autoSelectFirst = false) => {
+    try {
+      const res = await fetch(`${BRANCH_API}${companyId}`);
+      const json = await res.json();
+
+      if (json.success) {
+        setBranches(json.data);
+
+        if (autoSelectFirst && json.data.length > 0) {
+          setSelectedBranch(json.data[0].id);
+        } else if (json.data.length === 0) {
+          setSelectedBranch('');
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.log(err);
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- COMPANY CHANGE HANDLER ---------------- */
+
+  const handleCompanyChange = (e) => {
+    const companyId = e.target.value;
+    setSelectedCompany(companyId);
+    setSelectedBranch('');
+    setBranches([]);
+    fetchBranches(companyId, true);
+  };
+
+  /* ---------------- BRANCH CHANGE HANDLER ---------------- */
+
+  const handleBranchChange = (e) => {
+    setSelectedBranch(e.target.value);
+  };
+
+  /* ---------------- FETCH LEAVES FOR SELECTED BRANCH + DATE FILTER ---------------- */
+
+  useEffect(() => {
+    if (!selectedBranch) return;
+
     const fetchLeaves = async () => {
       try {
         setLoading(true);
         setError(null);
 
         const res = await fetch(
-          `https://store.mpdatahub.com/api/leave-list?user_id=${dateFilter.user_id}&month=${dateFilter.month}&year=${dateFilter.year}`
+          `${LEAVE_LIST_BASE}?branch_id=${selectedBranch}&user_id=${dateFilter.user_id}&month=${dateFilter.month}&year=${dateFilter.year}`
         );
         const json = await res.json();
 
@@ -94,18 +181,30 @@ export default function LeaveList() {
           setMeta({
             month: json.month,
             total: json.total_leaves,
+            branch_name: json.branch_name,
           });
         } else {
           setError('Failed to load leave records.');
+          setLeaves([]);
         }
       } catch (err) {
         setError('Network error. Please try again.');
+        setLeaves([]);
       } finally {
         setLoading(false);
       }
     };
+
     fetchLeaves();
-  }, [dateFilter]);
+  }, [selectedBranch, dateFilter]);
+
+  const refetchLeaves = () => {
+    setDateFilter({
+      user_id: '',
+      month: currentMonth,
+      year: currentYear,
+    });
+  };
 
   const updateStatus = async (leaveId, newStatus) => {
     if (updatingId) return;
@@ -184,27 +283,6 @@ export default function LeaveList() {
     return halfday.charAt(0).toUpperCase() + halfday.slice(1);
   }
 
-  /* ---------------- GROUP BY BRANCH ---------------- */
-
-  const groupByBranch = (list) => {
-    const groups = {};
-
-    list.forEach((leave) => {
-      const key = leave.branch_id ?? 'unassigned';
-
-      if (!groups[key]) {
-        groups[key] = {
-          branch_id: leave.branch_id,
-          branch_name: leave.branch_name || 'Unassigned Branch',
-          items: [],
-        };
-      }
-      groups[key].items.push(leave);
-    });
-
-    return Object.values(groups);
-  };
-
   const renderLeaveRow = (leave, idx) => {
     const sc = STATUS_CONFIG[leave.status] || STATUS_CONFIG.pending;
     const isUpdating = updatingId === leave.id;
@@ -282,6 +360,7 @@ export default function LeaveList() {
           <div>
             <h1>Leave Management</h1>
             <p>
+              {meta.branch_name ? `${meta.branch_name} · ` : ''}
               {meta.month || 'Current Month'} · {meta.total} leave
               {meta.total !== 1 ? 's' : ''} total
             </p>
@@ -289,6 +368,39 @@ export default function LeaveList() {
         </div>
 
         <div className="leavelist-controls">
+          {/* COMPANY DROPDOWN */}
+          <select
+            className="branch-select"
+            value={selectedCompany}
+            onChange={handleCompanyChange}
+          >
+            <option value="" disabled>
+              Select Company
+            </option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+
+          {/* BRANCH DROPDOWN */}
+          <select
+            className="branch-select"
+            value={selectedBranch}
+            onChange={handleBranchChange}
+            disabled={branches.length === 0}
+          >
+            <option value="" disabled>
+              Select Branch
+            </option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+
           <div className="ll-search-wrap">
             <FiSearch className="ll-search-icon" />
 
@@ -303,13 +415,7 @@ export default function LeaveList() {
 
           <button
             className="ll-refresh-btn"
-            onClick={() =>
-              setDateFilter({
-                user_id: '',
-                month: currentMonth,
-                year: currentYear,
-              })
-            }
+            onClick={refetchLeaves}
             title="Refresh"
           >
             <FiRefreshCw className={loading ? 'spin' : ''} />
@@ -333,9 +439,9 @@ export default function LeaveList() {
         <div className="form-group">
           <label>Year Filter</label>
           <select name="year" value={dateFilter.year} onChange={handleDate}>
-            {[2026, 2025, 2024, 2023].map((y) => (
-              <option key={y} value={y}>
-                {y}
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
               </option>
             ))}
           </select>
@@ -356,75 +462,61 @@ export default function LeaveList() {
         ))}
       </div>
 
-      {loading && leaves.length === 0 && (
+      {!selectedBranch ? (
         <div className="ll-center">
-          <div className="ll-spinner" />
-          <p>Loading leave records…</p>
+          <p>Select a company and branch to view leave records.</p>
         </div>
-      )}
-
-      {error && (
-        <div className="ll-error">
-          <FiAlertCircle />
-          {error}
-
-          <button
-            className="ll-retry"
-            onClick={() =>
-              setDateFilter({
-                user_id: '',
-                month: currentMonth,
-                year: currentYear,
-              })
-            }
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {!loading && !error && leaves.length > 0 && (
-        <div className="ll-summary-row">
-          <div className="ll-summary-card ll-summary--total">
-            <span className="ll-sum-num">{counts.all}</span>
-            <span className="ll-sum-label">Total Applied</span>
-          </div>
-
-          <div className="ll-summary-card ll-summary--approved">
-            <span className="ll-sum-num">{counts.approved}</span>
-            <span className="ll-sum-label">Approved</span>
-          </div>
-
-          <div className="ll-summary-card ll-summary--pending">
-            <span className="ll-sum-num">{counts.pending}</span>
-            <span className="ll-sum-label">Pending</span>
-          </div>
-
-          <div className="ll-summary-card ll-summary--rejected">
-            <span className="ll-sum-num">{counts.rejected}</span>
-            <span className="ll-sum-label">Rejected</span>
-          </div>
-        </div>
-      )}
-
-      {!loading && !error && (
+      ) : (
         <>
-          {filtered.length === 0 ? (
+          {loading && leaves.length === 0 && (
             <div className="ll-center">
-              <p>No leave records found matching your criteria.</p>
+              <div className="ll-spinner" />
+              <p>Loading leave records…</p>
             </div>
-          ) : (
-            groupByBranch(filtered).map((group) => (
-              <div className="branch-section" key={group.branch_id ?? 'unassigned'}>
-                <div className="branch-section-header">
-                  <span className="branch-id-badge">
-                    Branch {group.branch_id ?? '-'}
-                  </span>
-                  <h2 className="branch-section-title">{group.branch_name}</h2>
-                  <span className="branch-section-tag">Leave Records</span>
-                  <span className="branch-section-count">{group.items.length}</span>
-                </div>
+          )}
 
+          {error && (
+            <div className="ll-error">
+              <FiAlertCircle />
+              {error}
+
+              <button className="ll-retry" onClick={refetchLeaves}>
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && leaves.length > 0 && (
+            <div className="ll-summary-row">
+              <div className="ll-summary-card ll-summary--total">
+                <span className="ll-sum-num">{counts.all}</span>
+                <span className="ll-sum-label">Total Applied</span>
+              </div>
+
+              <div className="ll-summary-card ll-summary--approved">
+                <span className="ll-sum-num">{counts.approved}</span>
+                <span className="ll-sum-label">Approved</span>
+              </div>
+
+              <div className="ll-summary-card ll-summary--pending">
+                <span className="ll-sum-num">{counts.pending}</span>
+                <span className="ll-sum-label">Pending</span>
+              </div>
+
+              <div className="ll-summary-card ll-summary--rejected">
+                <span className="ll-sum-num">{counts.rejected}</span>
+                <span className="ll-sum-label">Rejected</span>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && (
+            <>
+              {filtered.length === 0 ? (
+                <div className="ll-center">
+                  <p>No leave records found matching your criteria.</p>
+                </div>
+              ) : (
                 <div className="ll-table-wrap">
                   <table className="ll-table">
                     <thead>
@@ -443,12 +535,12 @@ export default function LeaveList() {
                     </thead>
 
                     <tbody>
-                      {group.items.map((leave, idx) => renderLeaveRow(leave, idx))}
+                      {filtered.map((leave, idx) => renderLeaveRow(leave, idx))}
                     </tbody>
                   </table>
                 </div>
-              </div>
-            ))
+              )}
+            </>
           )}
         </>
       )}

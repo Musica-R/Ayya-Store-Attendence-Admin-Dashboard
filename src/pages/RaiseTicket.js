@@ -8,6 +8,10 @@ import { FiCheckCircle, FiClock, FiXCircle } from 'react-icons/fi';
 
 const BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
+const COMPANY_API = `${BASE_URL}/list-company`;
+const BRANCH_API = `${BASE_URL}/get-branch-for-company?company_id=`;
+const TICKET_LIST_BASE = `${BASE_URL}/ticket-list-by-branch`;
+
 const RaiseTicket = () => {
   const [formData, setFormData] = useState({
     user_id: '',
@@ -21,7 +25,9 @@ const RaiseTicket = () => {
 
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1);
-  const currentYear = now.getFullYear();
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
   const [dateFilter, setDateFilter] = useState({
     month: currentMonth,
@@ -29,11 +35,19 @@ const RaiseTicket = () => {
   });
 
   const [raiseTicket, setRaiseTicket] = useState([]);
+  const [meta, setMeta] = useState({ branch_name: '', total: 0 });
   const [activeForm, setActiveForm] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [notificationId, setNotificationId] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+
+  // Company / Branch dropdown state
+  const [companies, setCompanies] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
 
   const monthOptions = [
     { label: 'January', value: '1' },
@@ -101,26 +115,6 @@ const RaiseTicket = () => {
     return name.substring(0, 2).toUpperCase();
   };
 
-  /* ================= GROUP BY BRANCH ================= */
-  const groupByBranch = (list) => {
-    const groups = {};
-
-    list.forEach((record) => {
-      const key = record.branch_id ?? 'unassigned';
-
-      if (!groups[key]) {
-        groups[key] = {
-          branch_id: record.branch_id,
-          branch_name: record.branch_name || 'Unassigned Branch',
-          items: [],
-        };
-      }
-      groups[key].items.push(record);
-    });
-
-    return Object.values(groups);
-  };
-
   /* ================= FETCH EMPLOYEES ================= */
   const fetchEmployees = async () => {
     try {
@@ -133,30 +127,120 @@ const RaiseTicket = () => {
     } catch (err) {
       console.log(err);
     }
-    setLoading(false);
     setLoadingEmployees(false);
   };
 
-  /* ================= FETCH RAISE TICKET ================= */
   useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  /* ================= INITIAL LOAD: companies ================= */
+
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  /* ================= FETCH COMPANIES ================= */
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(COMPANY_API);
+      const json = await res.json();
+
+      if (json.success) {
+        setCompanies(json.data);
+
+        if (json.data.length > 0) {
+          const firstCompany = json.data[0].id;
+          setSelectedCompany(firstCompany);
+          fetchBranches(firstCompany, true);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  /* ================= FETCH BRANCHES FOR A COMPANY ================= */
+
+  const fetchBranches = async (companyId, autoSelectFirst = false) => {
+    try {
+      const res = await fetch(`${BRANCH_API}${companyId}`);
+      const json = await res.json();
+
+      if (json.success) {
+        setBranches(json.data);
+
+        if (autoSelectFirst && json.data.length > 0) {
+          setSelectedBranch(json.data[0].id);
+        } else if (json.data.length === 0) {
+          setSelectedBranch('');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  /* ================= COMPANY CHANGE HANDLER ================= */
+
+  const handleCompanyChange = (e) => {
+    const companyId = e.target.value;
+    setSelectedCompany(companyId);
+    setSelectedBranch('');
+    setBranches([]);
+    fetchBranches(companyId, true);
+  };
+
+  /* ================= BRANCH CHANGE HANDLER ================= */
+
+  const handleBranchChange = (e) => {
+    setSelectedBranch(e.target.value);
+  };
+
+  /* ================= FETCH TICKETS FOR SELECTED BRANCH + DATE FILTER ================= */
+
+  useEffect(() => {
+    if (!selectedBranch) return;
+
     const fetchRaiseTicket = async () => {
       try {
+        setLoading(true);
+        setError(null);
+
         const response = await fetch(
-          `${BASE_URL}/tickets?month=${dateFilter.month}&year=${dateFilter.year}`
+          `${TICKET_LIST_BASE}?branch_id=${selectedBranch}&month=${dateFilter.month}&year=${dateFilter.year}`
         );
         const result = await response.json();
         if (result.success) {
-          setRaiseTicket(result.data);
+          setRaiseTicket(result.data || []);
+          setMeta({
+            branch_name: result.branch_name || '',
+            total: result.total_tickets || 0,
+          });
+        } else {
+          setError('Failed to load ticket records.');
+          setRaiseTicket([]);
         }
       } catch (error) {
         console.error('Error fetching Raise Ticket:', error);
+        setError('Network error. Please try again.');
+        setRaiseTicket([]);
       } finally {
         setLoading(false);
       }
     };
     fetchRaiseTicket();
-    fetchEmployees();
-  }, [activeForm, deleteId, dateFilter, updatingId]);
+  }, [selectedBranch, activeForm, deleteId, dateFilter, updatingId]);
+
+  const refetchTickets = () => {
+    setDateFilter({
+      month: currentMonth,
+      year: currentYear,
+    });
+  };
+
+
 
   /* ================= HANDLE INPUT ================= */
   const handleChange = (e) => {
@@ -296,7 +380,7 @@ const RaiseTicket = () => {
               <span className="rt-emp-name">
                 {record.name || record.user?.name || 'Unknown User'}
               </span>
-              {record.empid && <span className="rt-emp-id">{record.empid}</span>}
+              {/* {record.empid && <span className="rt-emp-id">{record.empid}</span>} */}
             </div>
           </div>
         </td>
@@ -325,13 +409,12 @@ const RaiseTicket = () => {
         <td>
           <div className="rt-status-cell">
             <span
-              className={`rt-status-pill ${
-                record.status?.toLowerCase() === 'approved'
-                  ? 'rt-status-approved'
-                  : record.status?.toLowerCase() === 'rejected'
+              className={`rt-status-pill ${record.status?.toLowerCase() === 'approved'
+                ? 'rt-status-approved'
+                : record.status?.toLowerCase() === 'rejected'
                   ? 'rt-status-rejected'
                   : 'rt-status-pending'
-              }`}
+                }`}
             >
               {sc.icon}&nbsp;{sc.label}
             </span>
@@ -369,16 +452,6 @@ const RaiseTicket = () => {
     );
   };
 
-  /* ================= LOADING STATE ================= */
-  if (loading) {
-    return (
-      <div className="rt-loading-container">
-        <div className="rt-loader-pulse"></div>
-        <p className="rt-loading-text">Loading Ticket records...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="rt-page fade-in-up">
 
@@ -391,6 +464,7 @@ const RaiseTicket = () => {
           <div>
             <h1 className="rt-page-title">Ticket Records</h1>
             <p className="rt-page-sub">
+              {meta.branch_name ? `${meta.branch_name} · ` : ''}
               Raise tickets and monitor their progress to keep everything running smoothly.
             </p>
           </div>
@@ -412,6 +486,41 @@ const RaiseTicket = () => {
 
       {/* ── FILTER ROW ── */}
       <div className="rt-filter-row">
+        <div className="rt-filter-group">
+          <label className="rt-filter-label">Company</label>
+          <select
+            className="branch-select"
+            value={selectedCompany}
+            onChange={handleCompanyChange}
+          >
+            <option value="" disabled>
+              Select Company
+            </option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="rt-filter-group">
+          <label className="rt-filter-label">Branch</label>
+          <select
+            className="branch-select"
+            value={selectedBranch}
+            onChange={handleBranchChange}
+            disabled={branches.length === 0}
+          >
+            <option value="" disabled>
+              Select Branch
+            </option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="rt-filter-group">
           <label className="rt-filter-label">Month</label>
           <select
@@ -435,8 +544,10 @@ const RaiseTicket = () => {
             value={dateFilter.year}
             onChange={handleDate}
           >
-            {[2026, 2025, 2024, 2023].map((y) => (
-              <option key={y} value={y}>{y}</option>
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
             ))}
           </select>
         </div>
@@ -536,11 +647,49 @@ const RaiseTicket = () => {
           document.body
         )}
 
-      {/* ── TABLE SECTION (GROUPED BY BRANCH) ── */}
+      {/* ── TABLE SECTION ── */}
       <div className="rt-section">
         <h2 className="rt-section-title">Raised Ticket History</h2>
 
-        {raiseTicket.length === 0 ? (
+        {!selectedBranch ? (
+          <div className="rt-table-card">
+            <div className="rt-table-responsive">
+              <table className="rt-table">
+                <tbody>
+                  <tr>
+                    <td className="rt-empty-state">
+                      <div className="rt-empty-icon">🏢</div>
+                      <p>Select a company and branch to view ticket records.</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : loading ? (
+          <div className="rt-loading-container">
+            <div className="rt-loader-pulse"></div>
+            <p className="rt-loading-text">Loading Ticket records...</p>
+          </div>
+        ) : error ? (
+          <div className="rt-table-card">
+            <div className="rt-table-responsive">
+              <table className="rt-table">
+                <tbody>
+                  <tr>
+                    <td className="rt-empty-state">
+                      <div className="rt-empty-icon">⚠️</div>
+                      <p>{error}</p>
+                      <button className="rt-btn rt-btn-secondary" onClick={refetchTickets}>
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : raiseTicket.length === 0 ? (
           <div className="rt-table-card">
             <div className="rt-table-responsive">
               <table className="rt-table">
@@ -556,39 +705,26 @@ const RaiseTicket = () => {
             </div>
           </div>
         ) : (
-          groupByBranch(raiseTicket).map((group) => (
-            <div className="branch-section" key={group.branch_id ?? 'unassigned'}>
-              <div className="branch-section-header">
-                <span className="branch-id-badge">
-                  Branch {group.branch_id ?? '-'}
-                </span>
-                <h2 className="branch-section-title">{group.branch_name}</h2>
-                <span className="branch-section-tag">Ticket Records</span>
-                <span className="branch-section-count">{group.items.length}</span>
-              </div>
-
-              <div className="rt-table-card">
-                <div className="rt-table-responsive">
-                  <table className="rt-table">
-                    <thead>
-                      <tr>
-                        <th>Employee</th>
-                        <th>Date</th>
-                        <th>Check In</th>
-                        <th>Check Out</th>
-                        <th>Reason</th>
-                        <th>Status</th>
-                        <th style={{ textAlign: 'center' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.items.map((record) => renderTicketRow(record))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+          <div className="rt-table-card">
+            <div className="rt-table-responsive">
+              <table className="rt-table">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Date</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {raiseTicket.map((record) => renderTicketRow(record))}
+                </tbody>
+              </table>
             </div>
-          ))
+          </div>
         )}
       </div>
 

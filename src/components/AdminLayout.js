@@ -65,13 +65,13 @@ const AdminLayout = () => {
                         <FiHome className="nav-icon" /><span>Dashboard</span>
                     </NavLink>
 
-                    <NavLink
+                    {/* <NavLink
                         to="/admin/add-employee"
                         className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}
                         onClick={closeSidebar}
                     >
                         <FiUserPlus className="nav-icon" /> <span>Add Employee</span>
-                    </NavLink>
+                    </NavLink> */}
 
                     <NavLink
                         to="/admin/emp-list"
@@ -126,7 +126,7 @@ const AdminLayout = () => {
                         className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}
                         onClick={closeSidebar}
                     >
-                        <GoOrganization className="nav-icon" /> <span>Company Details</span>
+                        <GoOrganization className="nav-icon" /> <span>Management</span>
                     </NavLink>
 
                     <NavLink

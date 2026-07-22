@@ -552,6 +552,61 @@ input:checked + .slider:before {
   font-size: 13px;
 }
 
+/* ================= ADD THESE TO EmpList.css ================= */
+
+.emplist-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.branch-select {
+  padding: 10px 16px;
+  border-radius: 30px;
+  border: none;
+  outline: none;
+  font-family: 'Outfit';
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: white;
+  color: #0f172a;
+}
+
+.branch-select:focus {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.btn-add-employee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: #ffffff;
+  color: #040404;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.btn-add-employee:hover {
+  background: #ebebed;
+}
+
+@media (max-width: 768px) {
+  .emplist-header-controls {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .branch-select {
+    width: 100%;
+  }
+}
+
 /* MOBILE */
 
 /* ======================== 1024px (Tablet / Small Laptop) ======================== */

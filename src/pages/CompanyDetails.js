@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/CompanyDetails.css';
+import '../styles/RegistrationForm.css';
 import Lottie from 'lottie-react';
 import animationData from '../LottieFiles/Company.json';
 import { IoAdd } from 'react-icons/io5';
-// import { MdDeleteOutline } from 'react-icons/md';
 import { createPortal } from 'react-dom';
 import { FaGreaterThan } from 'react-icons/fa6';
 import { CiEdit } from 'react-icons/ci';
+
+const API_BASE = 'https://store.mpdatahub.com/api';
 
 const CompanyDetails = () => {
   const [formData, setFormData] = useState({
@@ -33,19 +35,28 @@ const CompanyDetails = () => {
   const [companyId, setCompanyId] = useState(null);
 
   const [branch, setBranch] = useState([]);
-  // const [branchId, setBranchId] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
 
   const [loading, setLoading] = useState(true);
 
-  // const defaultOptions = {
-  //   loop: true,
-  //   autoplay: true,
-  //   animationData: animationData,
-  //   rendererSettings: {
-  //     preserveAspectRatio: 'xMidYMid slice',
-  //   },
-  // };
+  /* ================= POSITIONS STATE ================= */
+  // Moved here from the Registration page - lives at the bottom of Company Details.
+  const [positions, setPositions] = useState([]);
+  const [loadingPositions, setLoadingPositions] = useState(false);
+
+  const [newPosition, setNewPosition] = useState({
+    position_name: '',
+    islotlog: 'Active',
+    isActive: true,
+  });
+  const [addingPosition, setAddingPosition] = useState(false);
+
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   /* ================= EDIT BRANCH ================= */
 
@@ -61,6 +72,20 @@ const CompanyDetails = () => {
     });
     setIsEdit(true);
     setActiveBranchForm(true);
+  };
+
+  const closeBranchForm = () => {
+    setActiveBranchForm(false);
+    setIsEdit(false);
+    setFormData1({
+      company_id: '',
+      branch_name: '',
+      branch_lon: '',
+      branch_lat: '',
+      branch_address: '',
+      branch_id: '',
+      meter: ''
+    });
   };
 
   /* ================= FETCH COMPANIES ================= */
@@ -107,6 +132,29 @@ const CompanyDetails = () => {
 
     fetchBranch();
   }, [companyId, formData1]);
+
+  /* ================= FETCH POSITIONS ================= */
+
+  const fetchPositions = async () => {
+    setLoadingPositions(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/positions`);
+      const result = await response.json();
+
+      if (result.status) {
+        setPositions(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching positions:', error);
+    }
+
+    setLoadingPositions(false);
+  };
+
+  useEffect(() => {
+    fetchPositions();
+  }, []);
 
   /* ================= HANDLE INPUT ================= */
 
@@ -249,7 +297,201 @@ const CompanyDetails = () => {
       alert('Error submitting form');
     } finally {
       setActiveBranchForm(false);
+      setIsEdit(false);
     }
+  };
+
+  /* ================= ADD NEW POSITION ================= */
+
+  const handleNewPositionChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setNewPosition((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleAddPosition = async (e) => {
+    e.preventDefault();
+
+    if (!newPosition.position_name.trim()) return;
+
+    setAddingPosition(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/create-positions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPosition),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(result.message || 'Position added successfully!');
+        setNewPosition({ position_name: '', islotlog: 'Active', isActive: true });
+        fetchPositions();
+      } else {
+        if (result.data) {
+          alert(Object.values(result.data).flat().join('\n'));
+        } else {
+          alert(result.message || 'Failed to add position');
+        }
+      }
+    } catch (error) {
+      console.error('Error adding position:', error);
+      alert('Error adding position');
+    }
+
+    setAddingPosition(false);
+  };
+
+  /* ================= TOGGLE POSITION STATUS ================= */
+
+  const updatePositionStatus = async (position, updates) => {
+    const previous = position;
+
+    setPositions((prev) =>
+      prev.map((p) => (p.id === position.id ? { ...p, ...updates } : p))
+    );
+
+    try {
+      const params = new URLSearchParams({
+        islotlog: updates.islotlog,
+        isActive: updates.isActive ? 1 : 0,
+      });
+
+      const response = await fetch(
+        `${API_BASE}/positions/${position.id}/status?${params.toString()}`
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || result.status === false) {
+        setPositions((prev) =>
+          prev.map((p) => (p.id === position.id ? previous : p))
+        );
+        alert(result.message || 'Failed to update position status');
+      }
+    } catch (error) {
+      console.error('Error updating position status:', error);
+      setPositions((prev) =>
+        prev.map((p) => (p.id === position.id ? previous : p))
+      );
+      alert('Error updating position status');
+    }
+  };
+
+  const handleToggleSlotLog = (position) => {
+    updatePositionStatus(position, {
+      islotlog: position.islotlog === 'Active' ? 'Inactive' : 'Active',
+      isActive: position.isActive,
+    });
+  };
+
+  const handleToggleActive = (position) => {
+    updatePositionStatus(position, {
+      islotlog: position.islotlog,
+      isActive: !position.isActive,
+    });
+  };
+
+  /* ================= EDIT POSITION NAME ================= */
+
+  const startEdit = async (position) => {
+    setEditingId(position.id);
+    setEditName(position.position_name);
+
+    try {
+      const response = await fetch(`${API_BASE}/positions/${position.id}`);
+      const result = await response.json();
+
+      if (result.status && result.data) {
+        setEditName(result.data.position_name);
+      }
+    } catch (error) {
+      console.error('Error fetching position:', error);
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+  };
+
+  const saveEdit = async (position) => {
+    if (!editName.trim()) return;
+
+    setSavingEdit(true);
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/positions-update/${position.id}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            position_name: editName,
+            islotlog: position.islotlog,
+            isActive: position.isActive,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setPositions((prev) =>
+          prev.map((p) =>
+            p.id === position.id ? { ...p, position_name: editName } : p
+          )
+        );
+        setEditingId(null);
+        setEditName('');
+      } else {
+        if (result.data) {
+          alert(Object.values(result.data).flat().join('\n'));
+        } else {
+          alert(result.message || 'Failed to update position');
+        }
+      }
+    } catch (error) {
+      console.error('Error updating position:', error);
+      alert('Error updating position');
+    }
+
+    setSavingEdit(false);
+  };
+
+  /* ================= DELETE POSITION ================= */
+
+  const confirmDeletePosition = async () => {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/positions-destroy/${deleteTarget.id}`
+      );
+
+      if (response.ok) {
+        setPositions((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+        if (editingId === deleteTarget.id) {
+          setEditingId(null);
+          setEditName('');
+        }
+        setDeleteTarget(null);
+      } else {
+        const result = await response.json();
+        alert(result.message || 'Failed to delete position');
+      }
+    } catch (error) {
+      console.error('Error deleting position:', error);
+      alert('Error deleting position');
+    }
+
+    setDeleting(false);
   };
 
   /* ================= LOADING STATE ================= */
@@ -269,8 +511,7 @@ const CompanyDetails = () => {
       <div className="page-headers glass-panels">
         <div className="header-content">
           <div className="permission-title-group">
-            {/* <Lottie options={defaultOptions} height={70} width={70} /> */}
-              <Lottie animationData={animationData} loop={true} style={{ width: 70, height: 70 }} />
+            <Lottie animationData={animationData} loop={true} style={{ width: 64, height: 64 }} />
             <div>
               <h1>Add Company</h1>
               <p>
@@ -281,19 +522,15 @@ const CompanyDetails = () => {
           </div>
         </div>
       </div>
+
+      {/* TOOLBAR */}
       <div className="toggle-button">
         <button
+          type="button"
           className="toggle-btn"
-          onClick={() => setActiveCompanyForm((prev) => !prev)}
+          onClick={() => setActiveBranchForm(true)}
         >
-          <IoAdd style={{ fontSize: '15px' }} /> Add Company
-        </button>
-
-        <button
-          className="toggle-btn"
-          onClick={() => setActiveBranchForm((prev) => !prev)}
-        >
-          <IoAdd style={{ fontSize: '15px' }} /> Add Branch
+          <IoAdd style={{ fontSize: '16px' }} /> Add Branch
         </button>
       </div>
 
@@ -310,7 +547,9 @@ const CompanyDetails = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <button
+                type="button"
                 className="close-btn"
+                aria-label="Close"
                 onClick={() => setActiveCompanyForm(false)}
               >
                 ×
@@ -318,9 +557,7 @@ const CompanyDetails = () => {
               <h2 className="form-title">Add New Company</h2>
 
               <form onSubmit={handleSubmit} className="registration-form">
-                {/* COMPANY NAME */}
-
-                <div className="form-group">
+                <div className="form-group full-width">
                   <label>Company Name</label>
                   <input
                     type="text"
@@ -330,8 +567,6 @@ const CompanyDetails = () => {
                     required
                   />
                 </div>
-
-                {/* COMPANY ADDRESS */}
 
                 <div className="form-group full-width">
                   <label>Company Address</label>
@@ -345,12 +580,9 @@ const CompanyDetails = () => {
                   ></textarea>
                 </div>
 
-                {/* SUBMIT */}
-
                 <div className="form-actions full-width">
                   <button type="submit" className="submit-btn">
-                    {' '}
-                    Add Company{' '}
+                    Add Company
                   </button>
                 </div>
               </form>
@@ -363,39 +595,16 @@ const CompanyDetails = () => {
 
       {activeBranchForm &&
         createPortal(
-          <div
-            className="modal-overlays"
-            onClick={() => {
-              setActiveBranchForm(false);
-              setFormData1({
-                company_id: '',
-                branch_name: '',
-                branch_lon: '',
-                branch_lat: '',
-                branch_address: '',
-                branch_id: '',
-                meter: ''
-              });
-            }}
-          >
+          <div className="modal-overlays" onClick={closeBranchForm}>
             <div
               className="form-card modal"
               onClick={(e) => e.stopPropagation()}
             >
               <button
+                type="button"
                 className="close-btn"
-                onClick={() => {
-                  setActiveBranchForm(false);
-                  setFormData1({
-                    company_id: '',
-                    branch_name: '',
-                    branch_lon: '',
-                    branch_lat: '',
-                    branch_address: '',
-                    branch_id: '',
-                    meter: ''
-                  });
-                }}
+                aria-label="Close"
+                onClick={closeBranchForm}
               >
                 ×
               </button>
@@ -404,9 +613,8 @@ const CompanyDetails = () => {
               </h2>
 
               <form onSubmit={branchUpdate} className="registration-form">
-                {/* COMPANY ID */}
-                <div className="form-group">
-                  <label>Company ID</label>
+                <div className="form-group full-width">
+                  <label>Company</label>
                   <select
                     name="company_id"
                     value={formData1.company_id}
@@ -425,8 +633,7 @@ const CompanyDetails = () => {
                   </select>
                 </div>
 
-                {/* BRANCH NAME */}
-                <div className="form-group">
+                <div className="form-group full-width">
                   <label>Branch Name</label>
                   <input
                     type="text"
@@ -437,9 +644,8 @@ const CompanyDetails = () => {
                   />
                 </div>
 
-                {/* BRANCH LATITUDE */}
                 <div className="form-group">
-                  <label>Company Latitude</label>
+                  <label>Latitude</label>
                   <input
                     type="text"
                     name="branch_lat"
@@ -449,9 +655,8 @@ const CompanyDetails = () => {
                   />
                 </div>
 
-                {/* BRANCH LONGITUDE */}
                 <div className="form-group">
-                  <label>Company Longitude</label>
+                  <label>Longitude</label>
                   <input
                     type="text"
                     name="branch_lon"
@@ -461,7 +666,6 @@ const CompanyDetails = () => {
                   />
                 </div>
 
-                {/* BRANCH ADDRESS */}
                 <div className="form-group full-width">
                   <label>Branch Address</label>
                   <textarea
@@ -473,8 +677,7 @@ const CompanyDetails = () => {
                   ></textarea>
                 </div>
 
-                {/* RADIUS DROPDOWN */}
-                <div className="form-group">
+                <div className="form-group full-width">
                   <label>Allowed Radius (Meters)</label>
                   <select name="meter" value={formData1.meter} onChange={handleChange1} required>
                     <option value="">Select Radius</option>
@@ -486,12 +689,9 @@ const CompanyDetails = () => {
                   </select>
                 </div>
 
-                {/* SUBMIT */}
-
                 <div className="form-actions full-width">
                   <button type="submit" className="submit-btn">
-                    {' '}
-                    {isEdit ? 'Update Branch' : 'Add Branch'}{' '}
+                    {isEdit ? 'Update Branch' : 'Add Branch'}
                   </button>
                 </div>
               </form>
@@ -502,27 +702,35 @@ const CompanyDetails = () => {
 
       {/* ================= COMPANY LIST ================= */}
 
-      <h2 className="form-title">Company List</h2>
-      <div className="card-container">
-        {companies.map((data) => (
-          <div className="holiday-card" key={data.id}>
-            <div className="card-header">
-              <h3>{data.name}</h3>
-              <span className="arrow">
-                <button
-                  className="delete-icons"
-                  onClick={() => {
-                    setBranchList(true);
-                    setCompanyId(data.id);
-                  }}
-                >
-                  <FaGreaterThan style={{ color: '#5355E0' }} />
-                </button>
-              </span>
-            </div>
-            {/* <p className="description">{data.description}</p> */}
+      <div className="section-block">
+        <div className="section-heading-row">
+          <h2 className="form-title">Company List</h2>
+        </div>
+
+        {companies.length === 0 ? (
+          <div className="empty-state">No companies added yet.</div>
+        ) : (
+          <div className="card-container">
+            {companies.map((data) => (
+              <div className="holiday-card" key={data.id}>
+                <div className="card-header">
+                  <h3>{data.name}</h3>
+                  <button
+                    type="button"
+                    className="arrow"
+                    aria-label={`View branches for ${data.name}`}
+                    onClick={() => {
+                      setBranchList(true);
+                      setCompanyId(data.id);
+                    }}
+                  >
+                    <FaGreaterThan style={{ color: '#5355E0', fontSize: '11px' }} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
       {/* ================= BRANCH LIST ================= */}
@@ -535,52 +743,235 @@ const CompanyDetails = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <button
+                type="button"
                 className="close-btn"
+                aria-label="Close"
                 onClick={() => setBranchList(false)}
               >
                 ×
               </button>
               <h2 className="form-title">Branch List</h2>
 
-              <div className="card-containers">
-                {branch.map((data) => (
-                  <div className="holiday-card" key={data.id}>
-                    <div className="toggle-button">
-                      <button
-                        className="delete-icons"
-                        onClick={() => handleEdit(data)}
-                      >
-                        <CiEdit style={{ color: '#5355E0' }} />
-                      </button>
-                      {/* <button
-                        className="delete-icons"
-                      >
-                        <MdDeleteOutline
-                          style={{ fontSize: '23px', color: '#c62828' }}
-                        />
-                      </button> */}
-                    </div>
-                    <div className="card-header">
-                      <h3>{data.branch_name}</h3>
-                      {/* <span className="date">Lat:{data.branch_lat}</span>
-                      <span className="date">Lon:{data.branch_lon}</span> */}
-                    </div>
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                      <span className="date">Lat:{data.branch_lat}</span>
-                      <span className="date">Lon:{data.branch_lon}</span>
-                    </div>
+              {branch.length === 0 ? (
+                <div className="empty-state">No branches added for this company yet.</div>
+              ) : (
+                <div className="card-containers">
+                  {branch.map((data) => (
+                    <div className="holiday-card" key={data.id}>
+                      <div className="card-icon-row">
+                        <button
+                          type="button"
+                          className="delete-icons"
+                          aria-label={`Edit ${data.branch_name}`}
+                          onClick={() => handleEdit(data)}
+                        >
+                          <CiEdit style={{ color: '#5355E0' }} />
+                        </button>
+                      </div>
+                      <div className="card-header">
+                        <h3>{data.branch_name}</h3>
+                      </div>
+                      <div className="coords-row">
+                        <span className="date">Lat: {data.branch_lat}</span>
+                        <span className="date">Lon: {data.branch_lon}</span>
+                      </div>
 
-                     <div className="meter-badge">
-                      {data.meter} meters
+                      <div className="meter-badge">{data.meter} meters</div>
+                      <p className="description">{data.branch_address}</p>
                     </div>
-                    <p className="description">{data.branch_address}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>,
           document.body
         )}
+
+      {/* ================= POSITION MANAGEMENT (moved from Registration page) ================= */}
+
+      <div className="section-block">
+        <div className="section-heading-row">
+          <h2 className="form-title">Position Management</h2>
+        </div>
+
+        <div className="form-card">
+          <form onSubmit={handleAddPosition} className="position-add-form">
+            <div className="form-group">
+              <label>Position Name</label>
+              <input
+                type="text"
+                name="position_name"
+                value={newPosition.position_name}
+                onChange={handleNewPositionChange}
+                placeholder="e.g. Technician"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Location Status</label>
+              <select
+                name="islotlog"
+                value={newPosition.islotlog}
+                onChange={handleNewPositionChange}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div className="form-group position-active-field">
+              <label>Active</label>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  name="isActive"
+                  checked={newPosition.isActive}
+                  onChange={handleNewPositionChange}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="submit"
+                className="submit-btn"
+                disabled={addingPosition}
+              >
+                {addingPosition ? 'Adding...' : 'Add Position'}
+              </button>
+            </div>
+          </form>
+
+          {loadingPositions ? (
+            <p className="position-empty">Loading positions...</p>
+          ) : positions.length === 0 ? (
+            <p className="position-empty">No positions added yet.</p>
+          ) : (
+            <div className="position-grid">
+              {positions.map((position) => (
+                <div className="position-card" key={position.id}>
+                  <div className="position-card-header">
+                    {editingId === position.id ? (
+                      <input
+                        type="text"
+                        className="position-edit-input"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        autoFocus
+                      />
+                    ) : (
+                      <h3 className="position-card-name">
+                        {position.position_name}
+                      </h3>
+                    )}
+                  </div>
+
+                  <div className="position-card-row">
+                    <span>Location Status</span>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={position.islotlog === 'Active'}
+                        onChange={() => handleToggleSlotLog(position)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div className="position-card-row">
+                    <span>Active</span>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={
+                          position.isActive === true || position.isActive === 1
+                        }
+                        onChange={() => handleToggleActive(position)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div className="position-card-footer">
+                    {editingId === position.id ? (
+                      <>
+                        <button
+                          type="button"
+                          className="link-btn"
+                          onClick={() => saveEdit(position)}
+                          disabled={savingEdit}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="link-btn cancel"
+                          onClick={cancelEdit}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="link-btn"
+                          onClick={() => startEdit(position)}
+                        >
+                          Edit Position
+                        </button>
+                        <button
+                          type="button"
+                          className="link-btn delete"
+                          onClick={() => setDeleteTarget(position)}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* DELETE CONFIRMATION POPUP */}
+
+      {deleteTarget && (
+        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="modal-boxs" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Delete Position</h3>
+            <p className="modal-message">
+              Are you sure you want to delete{' '}
+              <strong>{deleteTarget.position_name}</strong>? This action
+              cannot be undone.
+            </p>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-btn confirm-delete"
+                onClick={confirmDeletePosition}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

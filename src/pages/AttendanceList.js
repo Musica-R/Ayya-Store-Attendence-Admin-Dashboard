@@ -1,18 +1,44 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import '../styles/AttendanceList.css';
 import * as XLSX from "xlsx-js-style";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import Lottie from "lottie-react";
 import animationData from "../LottieFiles/Completing Tasks.json";
+
+// ---------------- API ENDPOINTS ----------------
+const COMPANY_API = "https://store.mpdatahub.com/api/list-company";
+const BRANCH_API = "https://store.mpdatahub.com/api/get-branch-for-company?company_id=";
+
+const ATTENDANCE_PRESENT_API = "https://store.mpdatahub.com/api/attendance-List-branch";
+const ATTENDANCE_ABSENT_API = "https://store.mpdatahub.com/api/attendance-List-absent-branch";
+
+const EMPLOYEE_LIST_BY_BRANCH_API = "https://store.mpdatahub.com/api/employee-list-by-branch?branch_id=";
+
+const MONTHLY_SUMMARY_ADMIN_API = "https://store.mpdatahub.com/api/get-Monthly-Summary-admin";
+
+const EMP_PER_PAGE = 2; // employees shown per page inside the monthly report popup
 
 const AttendanceList = () => {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+
+  // Company / Branch (drives both the daily list & the monthly modal)
+  const [companies, setCompanies] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
+
+  // Modal - employee monthly report
   const [employees, setEmployees] = useState([]);
-  const [selectedUser, setSelectedUser] = useState('');
+  const [selectedUser, setSelectedUser] = useState(''); // '' | 'all' | <user_id>
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const [report, setReport] = useState([]);
+  const [report, setReport] = useState([]); // always an array of { user_id, empid, name, attendance: [...] }
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportPage, setReportPage] = useState(0);
 
   const [userType, setUserType] = useState('present');
   // 'present' | 'absent'
@@ -26,30 +52,99 @@ const AttendanceList = () => {
     setDateFilter(value);
   };
 
+  /* ---------------- INITIAL LOAD: companies ---------------- */
+
   useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(COMPANY_API);
+      const json = await res.json();
+
+      if (json.success) {
+        setCompanies(json.data);
+
+        if (json.data.length > 0) {
+          const firstCompany = json.data[0].id;
+          setSelectedCompany(firstCompany);
+          fetchBranches(firstCompany, true);
+        } else {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  const fetchBranches = async (companyId, autoSelectFirst = false) => {
+    try {
+      const res = await fetch(`${BRANCH_API}${companyId}`);
+      const json = await res.json();
+
+      if (json.success) {
+        setBranches(json.data);
+
+        if (autoSelectFirst && json.data.length > 0) {
+          setSelectedBranch(json.data[0].id);
+        } else if (json.data.length === 0) {
+          setSelectedBranch('');
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  const handleCompanyChange = (e) => {
+    const companyId = e.target.value;
+    setSelectedCompany(companyId);
+    setSelectedBranch('');
+    setBranches([]);
+    setAttendanceData([]);
+    fetchBranches(companyId, true);
+  };
+
+  const handleBranchChange = (e) => {
+    setSelectedBranch(e.target.value);
+  };
+
+  /* ---------------- DAILY ATTENDANCE LIST (branch + company wise) ---------------- */
+
+  useEffect(() => {
+    if (!selectedBranch) {
+      setAttendanceData([]);
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
     let timeoutId;
 
     const fetchAttendance = async () => {
       try {
+        const baseUrl =
+          userType === 'present' ? ATTENDANCE_PRESENT_API : ATTENDANCE_ABSENT_API;
 
-        let url = '';
-
-        if (userType === 'present') {
-          url = `https://store.mpdatahub.com/api/attendance-list?date=${dateFilter}`;
-        } else {
-          url = `https://store.mpdatahub.com/api/attendance-List-absent?date=${dateFilter}`;
-        }
+        const url = `${baseUrl}?branch_id=${selectedBranch}&date=${dateFilter}`;
 
         const response = await fetch(url);
-
         const result = await response.json();
 
         if (isMounted && result.success && result.data) {
           setAttendanceData(result.data);
           setLoading(false);
+        } else if (isMounted) {
+          setAttendanceData([]);
+          setLoading(false);
         }
-
       } catch (error) {
         console.error('Error fetching attendance data:', error);
       } finally {
@@ -59,51 +154,83 @@ const AttendanceList = () => {
       }
     };
 
+    setLoading(true);
     fetchAttendance();
 
     return () => {
       isMounted = false;
       clearTimeout(timeoutId);
     };
+  }, [dateFilter, userType, selectedBranch]);
 
-  }, [dateFilter, userType]);
+  /* ---------------- EMPLOYEE LIST FOR MODAL (branch wise) ---------------- */
 
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const res = await fetch("https://store.mpdatahub.com/api/employee-List");
-        const data = await res.json();
+  const fetchEmployeesForBranch = async (branchId) => {
+    try {
+      const res = await fetch(`${EMPLOYEE_LIST_BY_BRANCH_API}${branchId}`);
+      const data = await res.json();
 
-        if (data.success) {
-          setEmployees(data.data);
-        }
-      } catch (err) {
-        console.error(err);
+      if (data.success) {
+        setEmployees(data.data);
+      } else {
+        setEmployees([]);
       }
-    };
+    } catch (err) {
+      console.error(err);
+      setEmployees([]);
+    }
+  };
 
-    fetchEmployees();
-  }, []);
+  /* ---------------- MONTHLY REPORT (admin, branch wise, supports "all") ---------------- */
 
   const fetchMonthlyReport = async () => {
+    if (!selectedBranch) return alert("Select a branch first");
     if (!selectedUser) return alert("Select Employee");
+
+    setReportLoading(true);
+    setReportPage(0);
 
     try {
       const res = await fetch(
-        `https://store.mpdatahub.com/api/get-Monthly-Summary?user_id=${selectedUser}&month=${month}&year=${year}`
+        `${MONTHLY_SUMMARY_ADMIN_API}?user_id=${selectedUser}&month=${month}&year=${year}&branch_id=${selectedBranch}`
       );
 
       const data = await res.json();
 
       if (data.success) {
-        setReport(data.data.attendance);
+        // Normalize response: could be a single employee object or an array of employees.
+        const employeesData = Array.isArray(data.data) ? data.data : [data.data];
+        setReport(employeesData);
+      } else {
+        setReport([]);
       }
     } catch (err) {
       console.error(err);
+      setReport([]);
     }
+
+    setReportLoading(false);
   };
 
+  const totalReportPages = Math.max(1, Math.ceil(report.length / EMP_PER_PAGE));
+
+  const paginatedReport = report.slice(
+    reportPage * EMP_PER_PAGE,
+    reportPage * EMP_PER_PAGE + EMP_PER_PAGE
+  );
+
+  const goPrevReportPage = () => setReportPage((p) => Math.max(0, p - 1));
+  const goNextReportPage = () =>
+    setReportPage((p) => Math.min(totalReportPages - 1, p + 1));
+
+  /* ---------------- EXCEL EXPORT ---------------- */
+
   const exportToExcel = (data, fileName) => {
+    if (!data || data.length === 0) {
+      alert("No data to export");
+      return;
+    }
+
     // Convert JSON → Sheet
     const ws = XLSX.utils.json_to_sheet(data, { origin: "A3" });
 
@@ -196,16 +323,105 @@ const AttendanceList = () => {
   };
 
   const exportMonthlyReport = () => {
-    const formatted = report.map((r) => ({
-      Date: r.date,
-      CheckIn: r.check_in,
-      CheckOut: r.check_out,
-      Status: r.type,
-    }));
+    const rows = [];
 
-    exportToExcel(formatted, "Monthly_Attendance_Report");
+    report.forEach((emp) => {
+      (emp.attendance || []).forEach((r) => {
+        rows.push({
+          Employee: emp.name,
+          EmpID: emp.empid,
+          Date: r.date,
+          Day: r.day,
+          CheckIn: r.check_in,
+          CheckOut: r.check_out,
+          Status: r.type,
+        });
+      });
+    });
+
+    exportToExcel(rows, "Monthly_Attendance_Report");
   };
 
+  /* ---------------- PDF EXPORT ---------------- */
+  /* Requires: npm install jspdf jspdf-autotable */
+
+  const exportDailyReportPDF = () => {
+    if (attendanceData.length === 0) {
+      alert("No data to export");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(16);
+    doc.text("AYYA-STORE", 14, 15);
+    doc.setFontSize(11);
+    doc.text(`Daily Attendance Report - ${dateFilter}`, 14, 22);
+
+    autoTable(doc, {
+      startY: 28,
+      head: [["Name", "Branch", "Date", "Check In", "Check Out", "Status", "Worked Hours"]],
+      body: attendanceData.map((item) => [
+        item.name,
+        item.branch_name,
+        item.attendance_date,
+        formatTime(item.check_in),
+        formatTime(item.check_out),
+        item.type,
+        item.worked_hours,
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [37, 99, 235] },
+      margin: { left: 14, right: 14 },
+    });
+
+    doc.save("Daily_Attendance_Report.pdf");
+  };
+
+  const exportMonthlyReportPDF = () => {
+    if (report.length === 0) {
+      alert("No data to export");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(16);
+    doc.text("AYYA-STORE", 14, 15);
+    doc.setFontSize(11);
+    doc.text(`Monthly Attendance Report - ${month}/${year}`, 14, 22);
+
+    let startY = 30;
+
+    report.forEach((emp) => {
+      if (startY > 260) {
+        doc.addPage();
+        startY = 15;
+      }
+
+      doc.setFontSize(11);
+      doc.text(`${emp.name} (${emp.empid})`, 14, startY);
+
+      autoTable(doc, {
+        startY: startY + 4,
+        head: [["Date", "Day", "Check In", "Check Out", "Status"]],
+        body: (emp.attendance || []).map((r) => [
+          r.date,
+          r.day,
+          formatTime(r.check_in),
+          formatTime(r.check_out),
+          r.type,
+        ]),
+        styles: { fontSize: 7 },
+        headStyles: { fillColor: [37, 99, 235] },
+        margin: { left: 14, right: 14 },
+      });
+
+      startY = doc.lastAutoTable.finalY + 12;
+    });
+
+    doc.save("Monthly_Attendance_Report.pdf");
+  };
 
   // FORMAT TIME
   const formatTime = (timeString) => {
@@ -214,6 +430,7 @@ const AttendanceList = () => {
       timeString === '00:00:00' ||
       timeString === '00:00' ||
       timeString === '0:0' ||
+      timeString === '-:--:--' ||
       timeString.includes('0000')
     ) {
       return '--';
@@ -243,9 +460,14 @@ const AttendanceList = () => {
 
     return new Date(dateString).toLocaleDateString('en-US', options);
   };
+
   const openModal = () => {
     setReport([]);
     setSelectedUser('');
+    setReportPage(0);
+    if (selectedBranch) {
+      fetchEmployeesForBranch(selectedBranch);
+    }
     setShowModal(true);
   };
 
@@ -254,10 +476,12 @@ const AttendanceList = () => {
     if (!name) return 'UN';
     return name.substring(0, 2).toUpperCase();
   };
+
   const handleCloseModal = () => {
     setShowModal(false);
     setReport([]);
     setSelectedUser('');
+    setReportPage(0);
     setMonth(new Date().getMonth() + 1);
     setYear(new Date().getFullYear());
   };
@@ -403,7 +627,7 @@ const AttendanceList = () => {
 
           <div className="header-actions">
             <div className="stat-badge">
-              <span className="badge-label">Monthly Records</span>
+              <span className="badge-label">Records</span>
               <span className="badge-value">{attendanceData.length}</span>
             </div>
           </div>
@@ -411,7 +635,11 @@ const AttendanceList = () => {
         <br />
         <div className="header-actions">
           <button className="primary-btn" onClick={exportDailyReport}>
-            Download Daily Report
+            Download Daily Excel
+          </button>
+
+          <button className="pdf-btn" onClick={exportDailyReportPDF}>
+            Download Daily PDF
           </button>
 
           <button className="success-btn" onClick={openModal}>
@@ -420,10 +648,48 @@ const AttendanceList = () => {
         </div>
       </div>
 
+      {/* FILTER BAR — Company / Branch / Date (replaces old inline-styled flex row) */}
+      <div className="filter-bar">
+        {/* COMPANY */}
+        <div className="form-group">
+          <label>Company</label>
+          <select
+            className="branch-select"
+            value={selectedCompany}
+            onChange={handleCompanyChange}
+          >
+            <option value="" disabled>
+              Select Company
+            </option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div
-        style={{ display: 'flex', width: '100%', gap: '30px', padding: '10px' }}
-      >
+        {/* BRANCH */}
+        <div className="form-group">
+          <label>Branch</label>
+          <select
+            className="branch-select"
+            value={selectedBranch}
+            onChange={handleBranchChange}
+            disabled={branches.length === 0}
+          >
+            <option value="" disabled>
+              Select Branch
+            </option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* DATE */}
         <div className="form-group">
           <label>Date Filter</label>
           <input
@@ -461,7 +727,21 @@ const AttendanceList = () => {
       </div>
 
       {/* TABLES GROUPED BY BRANCH */}
-      {attendanceData.length === 0 ? (
+      {!selectedBranch ? (
+        <div className="attendance-content glass-panel">
+          <div className="table-responsive">
+            <table className="elegant-table">
+              <tbody>
+                <tr>
+                  <td className="empty-state">
+                    Select a company and branch to view attendance.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : attendanceData.length === 0 ? (
         <div className="attendance-content glass-panel">
           <div className="table-responsive">
             <table className="elegant-table">
@@ -478,15 +758,7 @@ const AttendanceList = () => {
       ) : (
         groupByBranch(attendanceData).map((group) => (
           <div className="branch-section" key={group.branch_id ?? 'unassigned'}>
-            <div className="branch-section-header">
-              <span className="branch-id-badge">
-                Branch {group.branch_id ?? '-'}
-              </span>
-              <h2 className="branch-section-title">{group.branch_name}</h2>
-              <span className="branch-section-tag">Attendance Records</span>
-              <span className="branch-section-count">{group.items.length}</span>
-            </div>
-
+            
             <div className="attendance-content glass-panel">
               <div className="table-responsive">
                 <table className="elegant-table">
@@ -513,9 +785,9 @@ const AttendanceList = () => {
         ))
       )}
 
-      {showModal && (
+      {showModal && createPortal(
         <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box modal-box--monthly" onClick={(e) => e.stopPropagation()}>
 
             <div className="modal-header">
               <h2>Monthly Attendance Report</h2>
@@ -530,6 +802,7 @@ const AttendanceList = () => {
                 onChange={(e) => setSelectedUser(e.target.value)}
               >
                 <option value="">Select Employee</option>
+                <option value="all">All Employees</option>
                 {employees.map(emp => (
                   <option key={emp.id} value={emp.id}>
                     {emp.name} ({emp.empid})
@@ -553,45 +826,84 @@ const AttendanceList = () => {
                 onChange={(e) => setYear(e.target.value)}
               />
 
-              <button className="primary-btn" onClick={fetchMonthlyReport}>
-                Get Report
+              <button className="primary-btn" onClick={fetchMonthlyReport} disabled={reportLoading}>
+                {reportLoading ? 'Loading...' : 'Get Report'}
               </button>
 
               <button className="success-btn" onClick={exportMonthlyReport}>
-                Export Excel
+                Excel
+              </button>
+
+              <button className="pdf-btn" onClick={exportMonthlyReportPDF}>
+                PDF
               </button>
             </div>
 
-            <div className="modal-table">
-              {report.length === 0 ? (
-                <div>No data available</div>
+            {/* Fixed-height scroll area so the popup never grows with the data */}
+            <div className="modal-table modal-table--fixed">
+              {reportLoading ? (
+                <div className="modal-loading">Loading report...</div>
+              ) : report.length === 0 ? (
+                <div className="modal-empty">No data available</div>
               ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Check In</th>
-                      <th>Check Out</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
+                paginatedReport.map((emp) => (
+                  <div key={emp.user_id ?? emp.empid} className="monthly-emp-block">
+                    <div className="monthly-emp-header">
+                      <span className="monthly-emp-name">{emp.name}</span>
+                      <span className="monthly-emp-id">{emp.empid}</span>
+                    </div>
 
-                  <tbody>
-                    {report.map((r, i) => (
-                      <tr key={i}>
-                        <td>{r.date}</td>
-                        <td>{formatTime(r.check_in)}</td>
-                        <td>{formatTime(r.check_out)}</td>
-                        <td>{r.type}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    <div className="monthly-emp-table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Day</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {(emp.attendance || []).map((r, i) => (
+                            <tr key={i}>
+                              <td>{r.date}</td>
+                              <td>{r.day}</td>
+                              <td>{formatTime(r.check_in)}</td>
+                              <td>{formatTime(r.check_out)}</td>
+                              <td>{r.type}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
 
+            {/* Pagination stays outside the scroll area, so the popup height never shifts */}
+            {report.length > EMP_PER_PAGE && (
+              <div className="modal-pagination">
+                <button onClick={goPrevReportPage} disabled={reportPage === 0}>
+                  ‹ Prev
+                </button>
+                <span>
+                  Page {reportPage + 1} of {totalReportPages}
+                </span>
+                <button
+                  onClick={goNextReportPage}
+                  disabled={reportPage >= totalReportPages - 1}
+                >
+                  Next ›
+                </button>
+              </div>
+            )}
+
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

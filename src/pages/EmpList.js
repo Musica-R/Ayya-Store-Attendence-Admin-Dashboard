@@ -1,29 +1,34 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../styles/EmpList.css';
-import { FiEdit2, FiX, FiSave, FiSearch } from 'react-icons/fi';
-// import Lottie from 'react-lottie';
-// import animationData from '../LottieFiles/Employee Search.json';
+import { FiEdit2, FiX, FiSave, FiSearch, FiPlus } from 'react-icons/fi';
 import Lottie from "lottie-react";
 import animationData from "../LottieFiles/Employee Search.json";
 
-const API_URL = 'https://store.mpdatahub.com/api/employee-List';
-const UPDATE_URL = 'https://store.mpdatahub.com/api/update-profile';
-const INACTIVE_URL = 'https://store.mpdatahub.com/api/employees/inactive';
-const ROLE_API = "https://store.mpdatahub.com/api/roles";
 const COMPANY_API = "https://store.mpdatahub.com/api/list-company";
 const BRANCH_API = "https://store.mpdatahub.com/api/get-branch-for-company?company_id=";
 
-// INTERN APIs
-const INTERN_URL = 'https://store.mpdatahub.com/api/employee-List-roles';
-const INACTIVE_INTERN_URL = 'https://store.mpdatahub.com/api/employees/inactive/roles';
+const UPDATE_URL = 'https://store.mpdatahub.com/api/update-profile';
+const ROLE_API = "https://store.mpdatahub.com/api/roles";
+
+// Branch-filtered list APIs
+const API_URL_BASE = 'https://store.mpdatahub.com/api/employee-list-by-branch?branch_id=';
+const INACTIVE_URL_BASE = 'https://store.mpdatahub.com/api/inactive-employee-list-by-branch?branch_id=';
+const INTERN_URL_BASE = 'https://store.mpdatahub.com/api/employee-list-role-by-branch?branch_id=';
+const INACTIVE_INTERN_URL_BASE = 'https://store.mpdatahub.com/api/inactive-employee-list-role-by-branch?branch_id=';
+
+const UPDATE_STATUS_URL = 'https://store.mpdatahub.com/api/update-Employee-Status';
 
 export default function EmpList() {
+  const navigate = useNavigate();
+
   const [employees, setEmployees] = useState([]);
   const [inactiveEmployees, setInactiveEmployees] = useState([]);
   const [interns, setInterns] = useState([]);
   const [inactiveInterns, setInactiveInterns] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [editModal, setEditModal] = useState(false);
@@ -33,36 +38,33 @@ export default function EmpList() {
   const [saveError, setSaveError] = useState('');
 
   const [roles, setRoles] = useState([]);
+
+  // Company / Branch dropdown state
   const [companies, setCompanies] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
+
+  // Branch dropdown used ONLY inside the edit modal (may differ from page-level company)
+  const [editBranches, setEditBranches] = useState([]);
 
   // active | inactive | intern | inactive_intern
   const [filterStatus, setFilterStatus] = useState('active');
 
+  /* ---------------- INITIAL LOAD: companies + roles ---------------- */
+
   useEffect(() => {
-    fetchEmployees();
-    fetchInactiveEmployees();
-    fetchInterns();
-    fetchInactiveInterns();
     fetchRoles();
     fetchCompanies();
   }, []);
 
-  // const defaultOptions = {
-  //   loop: true,
-  //   autoplay: true,
-  //   animationData: animationData,
-  //   rendererSettings: {
-  //     preserveAspectRatio: 'xMidYMid slice',
-  //   },
-  // };
+  /* ---------------- WHEN BRANCH CHANGES: reload all 4 lists ---------------- */
 
-  const counts = {
-    active: employees.length,
-    inactive: inactiveEmployees.length,
-    intern: interns.length,
-    inactive_intern: inactiveInterns.length,
-  };
+  useEffect(() => {
+    if (selectedBranch) {
+      fetchAllListsForBranch(selectedBranch);
+    }
+  }, [selectedBranch]);
 
   const tabLabels = {
     active: 'Employee List',
@@ -71,72 +73,158 @@ export default function EmpList() {
     inactive_intern: 'Inactive Intern List',
   };
 
-  /* ---------------- FETCH ACTIVE EMPLOYEES ---------------- */
+  const counts = {
+    active: employees.length,
+    inactive: inactiveEmployees.length,
+    intern: interns.length,
+    inactive_intern: inactiveInterns.length,
+  };
 
-  const fetchEmployees = async () => {
+  /* ---------------- FETCH COMPANIES ---------------- */
+
+  const fetchCompanies = async () => {
     try {
-      const res = await fetch(API_URL);
+      const res = await fetch(COMPANY_API);
+      const json = await res.json();
+
+      if (json.success) {
+        setCompanies(json.data);
+
+        // auto-select the first company, then load its branches
+        if (json.data.length > 0) {
+          const firstCompany = json.data[0].id;
+          setSelectedCompany(firstCompany);
+          fetchBranches(firstCompany, true);
+        } else {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    } catch (err) {
+      console.log(err);
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- FETCH BRANCHES FOR A COMPANY ---------------- */
+
+  const fetchBranches = async (companyId, autoSelectFirst = false) => {
+    try {
+      const res = await fetch(`${BRANCH_API}${companyId}`);
+      const json = await res.json();
+
+      if (json.success) {
+        setBranches(json.data);
+
+        if (autoSelectFirst && json.data.length > 0) {
+          setSelectedBranch(json.data[0].id);
+        } else if (json.data.length === 0) {
+          setSelectedBranch('');
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.log(err);
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- COMPANY CHANGE HANDLER ---------------- */
+
+  const handleCompanyChange = (e) => {
+    const companyId = e.target.value;
+    setSelectedCompany(companyId);
+    setSelectedBranch('');
+    setBranches([]);
+    fetchBranches(companyId, true);
+  };
+
+  /* ---------------- BRANCH CHANGE HANDLER ---------------- */
+
+  const handleBranchChange = (e) => {
+    setSelectedBranch(e.target.value);
+  };
+
+  /* ---------------- FETCH ALL 4 LISTS FOR SELECTED BRANCH ---------------- */
+
+  const fetchAllListsForBranch = async (branchId) => {
+    setListLoading(true);
+    setLoading(true);
+
+    await Promise.all([
+      fetchEmployees(branchId),
+      fetchInactiveEmployees(branchId),
+      fetchInterns(branchId),
+      fetchInactiveInterns(branchId),
+    ]);
+
+    setListLoading(false);
+    setLoading(false);
+  };
+
+  const fetchEmployees = async (branchId) => {
+    try {
+      const res = await fetch(`${API_URL_BASE}${branchId}`);
       const json = await res.json();
 
       if (json.success) {
         setEmployees(json.data);
+      } else {
+        setEmployees([]);
       }
     } catch (err) {
       console.log(err);
+      setEmployees([]);
     }
-
-    setLoading(false);
   };
 
-  /* ---------------- FETCH INACTIVE EMPLOYEES ---------------- */
-
-  const fetchInactiveEmployees = async () => {
+  const fetchInactiveEmployees = async (branchId) => {
     try {
-      const res = await fetch(INACTIVE_URL);
+      const res = await fetch(`${INACTIVE_URL_BASE}${branchId}`);
       const json = await res.json();
 
       if (json.success) {
         setInactiveEmployees(json.data);
+      } else {
+        setInactiveEmployees([]);
       }
     } catch (err) {
       console.log(err);
+      setInactiveEmployees([]);
     }
-
-    setLoading(false);
   };
 
-  /* ---------------- FETCH INTERN LIST ---------------- */
-
-  const fetchInterns = async () => {
+  const fetchInterns = async (branchId) => {
     try {
-      const res = await fetch(INTERN_URL);
+      const res = await fetch(`${INTERN_URL_BASE}${branchId}`);
       const json = await res.json();
 
       if (json.success) {
         setInterns(json.data);
+      } else {
+        setInterns([]);
       }
     } catch (err) {
       console.log(err);
+      setInterns([]);
     }
-
-    setLoading(false);
   };
 
-  /* ---------------- FETCH INACTIVE INTERN LIST ---------------- */
-
-  const fetchInactiveInterns = async () => {
+  const fetchInactiveInterns = async (branchId) => {
     try {
-      const res = await fetch(INACTIVE_INTERN_URL);
+      const res = await fetch(`${INACTIVE_INTERN_URL_BASE}${branchId}`);
       const json = await res.json();
 
       if (json.success) {
         setInactiveInterns(json.data);
+      } else {
+        setInactiveInterns([]);
       }
     } catch (err) {
       console.log(err);
+      setInactiveInterns([]);
     }
-
-    setLoading(false);
   };
 
   const fetchRoles = async () => {
@@ -152,54 +240,18 @@ export default function EmpList() {
     }
   };
 
-  const fetchCompanies = async () => {
-    try {
-      const res = await fetch(COMPANY_API);
-      const json = await res.json();
-
-      if (json.success) {
-        setCompanies(json.data);
-
-        // load first company's branches
-        if (json.data.length > 0) {
-          fetchBranches(json.data[0].id);
-        }
-      }
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const fetchBranches = async (companyId) => {
-    try {
-      const res = await fetch(
-        `${BRANCH_API}${companyId}`
-      );
-      const json = await res.json();
-
-      if (json.success) {
-        setBranches(json.data);
-      }
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  /* ---------------- UPDATE EMPLOYEES STATUS ---------------- */
+  /* ---------------- UPDATE EMPLOYEE STATUS ---------------- */
 
   const updateEmployeeStatus = async (id, status) => {
     try {
       setLoading(true);
       const res = await fetch(
-        `https://store.mpdatahub.com/api/update-Employee-Status?user_id=${id}&status=${status}`
+        `${UPDATE_STATUS_URL}?user_id=${id}&status=${status}`
       );
       const json = await res.json();
 
-      if (json.success) {
-        fetchEmployees();
-        fetchInactiveEmployees();
-        fetchInterns();
-        fetchInactiveInterns();
+      if (json.success && selectedBranch) {
+        fetchAllListsForBranch(selectedBranch);
       }
     } catch (err) {
       console.log(err);
@@ -207,8 +259,6 @@ export default function EmpList() {
 
     setLoading(false);
   };
-
-  /* ---------------- TOOGLE BUTTON ---------------- */
 
   const handleToggle = (id, status) => {
     const updatedStatus = status === 0 ? 1 : 0;
@@ -228,15 +278,29 @@ export default function EmpList() {
       address: emp.address || "",
       dob: emp.dob || "",
       role_id: emp.role_id || "",
-      company_id: emp.company_id || "",
-      branch_id: emp.branch_id || "",
+      company_id: emp.company_id || selectedCompany || "",
+      branch_id: emp.branch_id || selectedBranch || "",
       start_time: emp.start_time ? emp.start_time.slice(0, 5) : "",
       end_time: emp.end_time ? emp.end_time.slice(0, 5) : "",
     });
 
-    fetchBranches(emp.company_id);
+    // load branches for whichever company this employee belongs to
+    fetchEditBranches(emp.company_id || selectedCompany);
 
     setEditModal(true);
+  };
+
+  const fetchEditBranches = async (companyId) => {
+    try {
+      const res = await fetch(`${BRANCH_API}${companyId}`);
+      const json = await res.json();
+
+      if (json.success) {
+        setEditBranches(json.data);
+      }
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   const formatTime = (time) => {
@@ -312,16 +376,10 @@ export default function EmpList() {
       console.log('API Response:', json);
 
       if (json.success) {
-        setEmployees((prev) =>
-          prev.map((emp) =>
-            emp.id === editData.id ? { ...emp, ...editData } : emp
-          )
-        );
-        setInterns((prev) =>
-          prev.map((emp) =>
-            emp.id === editData.id ? { ...emp, ...editData } : emp
-          )
-        );
+        // refresh the currently selected branch's lists so any branch change is reflected
+        if (selectedBranch) {
+          fetchAllListsForBranch(selectedBranch);
+        }
 
         setEditModal(false);
       } else {
@@ -359,26 +417,8 @@ export default function EmpList() {
     return `${inactiveInterns.length} interns`;
   };
 
-  /* ---------------- GROUP BY BRANCH ---------------- */
-
-  const groupByBranch = (list) => {
-    const groups = {};
-
-    list.forEach((emp) => {
-      const key = emp.branch_id ?? 'unassigned';
-
-      if (!groups[key]) {
-        groups[key] = {
-          branch_id: emp.branch_id,
-          branch_name: emp.branch_name || 'Unassigned Branch',
-          items: [],
-        };
-      }
-      groups[key].items.push(emp);
-    });
-
-    return Object.values(groups);
-  };
+  const currentBranchName =
+    branches.find((b) => String(b.id) === String(selectedBranch))?.name || '';
 
   const renderEmpCard = (emp) => (
     <div className="emp-card" key={emp.id}>
@@ -445,29 +485,73 @@ export default function EmpList() {
 
       <div className="emplist-header">
         <div className="emplist-title">
-          {/* <Lottie options={defaultOptions} height={90} width={70} /> */}
           <Lottie animationData={animationData} loop={true} style={{ width: 90, height: 70 }} />
           <div>
             <h1>Employee List</h1>
-            <p>{headerCountLabel()}</p>
+            <p>
+              {currentBranchName ? `${currentBranchName} · ` : ''}
+              {headerCountLabel()}
+            </p>
           </div>
         </div>
 
-        <div className="emplist-search-wrap">
-          <FiSearch className="search-icon" />
-          <input
-            className="emplist-search"
-            placeholder="Search employee..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="emplist-header-controls">
+          {/* ADD EMPLOYEE BUTTON */}
+          <button
+            type="button"
+            className="btn-add-employee"
+            onClick={() => navigate('/admin/add-employee')}
+          >
+            <FiPlus /> Add Employee
+          </button>
+
+          {/* COMPANY DROPDOWN */}
+          <select
+            className="branch-select"
+            value={selectedCompany}
+            onChange={handleCompanyChange}
+          >
+            <option value="" disabled>
+              Select Company
+            </option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+
+          {/* BRANCH DROPDOWN */}
+          <select
+            className="branch-select"
+            value={selectedBranch}
+            onChange={handleBranchChange}
+            disabled={branches.length === 0}
+          >
+            <option value="" disabled>
+              Select Branch
+            </option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+
+          <div className="emplist-search-wrap">
+            <FiSearch className="search-icon" />
+            <input
+              className="emplist-search"
+              placeholder="Search employee..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
-      {loading && <p>Loading...</p>}
-
       <div className="pl-tabs">
-        {['active', 'inactive', 'intern', 'inactive_intern'].map((s) => (
+        {['active', 'inactive'].map((s) => (
           <button
             key={s}
             className={`pl-tab ${filterStatus === s ? 'pl-tab--active' : ''}`}
@@ -481,9 +565,15 @@ export default function EmpList() {
         ))}
       </div>
 
-      {/* EMPLOYEE GRID - GROUPED BY BRANCH */}
+      {/* EMPLOYEE GRID - FLAT LIST FOR THE SELECTED BRANCH */}
 
-      {loading ? (
+      {!selectedBranch ? (
+        <div className="emp-grid">
+          <div className="emp-loader">
+            <p>Select a company and branch to view employees.</p>
+          </div>
+        </div>
+      ) : loading || listLoading ? (
         <div className="emp-grid">
           <div className="emp-loader">
             <p>Loading employees...</p>
@@ -496,22 +586,9 @@ export default function EmpList() {
           </div>
         </div>
       ) : (
-        groupByBranch(listByTab[filterStatus]).map((group) => (
-          <div className="branch-section" key={group.branch_id ?? 'unassigned'}>
-            <div className="branch-section-header">
-              <span className="branch-id-badge">
-                Branch {group.branch_id ?? '-'}
-              </span>
-              <h2 className="branch-section-title">{group.branch_name}</h2>
-              <span className="branch-section-tag">{tabLabels[filterStatus]}</span>
-              <span className="branch-section-count">{group.items.length}</span>
-            </div>
-
-            <div className="emp-grid">
-              {group.items.map((emp) => renderEmpCard(emp))}
-            </div>
-          </div>
-        ))
+        <div className="emp-grid">
+          {listByTab[filterStatus].map((emp) => renderEmpCard(emp))}
+        </div>
       )}
 
       {/* EDIT MODAL */}
@@ -603,7 +680,7 @@ export default function EmpList() {
                   value={editData.company_id}
                   onChange={(e) => {
                     handleEditChange(e);
-                    fetchBranches(e.target.value);
+                    fetchEditBranches(e.target.value);
                   }}
                 >
                   {companies.map(company => (
@@ -622,7 +699,7 @@ export default function EmpList() {
                   value={editData.branch_id}
                   onChange={handleEditChange}
                 >
-                  {branches.map(branch => (
+                  {editBranches.map(branch => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
                     </option>

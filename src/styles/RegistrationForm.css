@@ -152,6 +152,320 @@ body {
     transform: translateY(1px);
 }
 
+.submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ======================== VIEW TOGGLE (Employee / Position) ======================== */
+
+.view-toggle {
+    display: flex;
+    gap: 8px;
+    background-color: #f1f5f9;
+    border-radius: 10px;
+    padding: 6px;
+    margin-bottom: 28px;
+}
+
+.view-toggle-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-toggle-btn:hover {
+    color: #0369a1;
+}
+
+.view-toggle-btn.active {
+    background-color: #ffffff;
+    color: #0369a1;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+/* ======================== TOGGLE SWITCH ======================== */
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #cbd5e1;
+    border-radius: 999px;
+    transition: background-color 0.2s ease;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #ffffff;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #0ea5e9;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.35);
+}
+
+/* ======================== POSITION MANAGER ======================== */
+
+.position-add-form {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    align-items: end;
+    gap: 16px;
+    margin-bottom: 32px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.position-add-form .form-actions {
+    margin-top: 0;
+}
+
+.position-add-form .submit-btn {
+    width: auto;
+    white-space: nowrap;
+    padding: 12px 22px;
+}
+
+.position-active-field {
+    align-items: flex-start;
+}
+
+.position-active-field label:first-child {
+    margin-bottom: 12px;
+}
+
+.position-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+}
+
+.position-card {
+    background-color: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.position-card:hover {
+    border-color: #bae6fd;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.position-card-header {
+    min-height: 24px;
+}
+
+.position-card-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a202c;
+    letter-spacing: -0.2px;
+}
+
+.position-edit-input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid #38bdf8;
+    border-radius: 6px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.position-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.position-card-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.link-btn {
+    background: none;
+    border: none;
+    color: #0284c7;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.link-btn:hover {
+    text-decoration: underline;
+}
+
+.link-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.link-btn.cancel {
+    color: #64748b;
+}
+
+.link-btn.delete {
+    color: #e53e3e;
+}
+
+.position-empty {
+    color: #64748b;
+    font-size: 14px;
+    padding: 20px 8px;
+    text-align: center;
+}
+
+/* ======================== DELETE CONFIRMATION POPUP ======================== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+}
+
+.modal-box {
+    background-color: #ffffff;
+    width: 100%;
+    max-width: 380px;
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+}
+
+.modal-title {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a202c;
+}
+
+.modal-message {
+    margin: 0 0 24px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #475569;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.modal-btn {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-btn.cancel {
+    background-color: #f1f5f9;
+    color: #334155;
+}
+
+.modal-btn.cancel:hover {
+    background-color: #e2e8f0;
+}
+
+.modal-btn.confirm-delete {
+    background-color: #e53e3e;
+    color: #ffffff;
+}
+
+.modal-btn.confirm-delete:hover {
+    background-color: #c53030;
+}
+
+.modal-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.form-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.btn-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid #ddd;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn-back:hover {
+  background: #f3f4f6;
+}
+
 /* ======================== 1024px (Tablet / Small Laptop) ======================== */
 
 @media (max-width:1024px) {
@@ -228,6 +542,18 @@ body {
         font-size: 15px;
     }
 
+    .position-add-form {
+        grid-template-columns: 1fr;
+    }
+
+    .position-add-form .submit-btn {
+        width: 100%;
+    }
+
+    .position-grid {
+        grid-template-columns: 1fr;
+    }
+
 }
 
 
@@ -271,6 +597,11 @@ body {
 
     .error-text {
         font-size: 12px;
+    }
+
+    .view-toggle-btn {
+        font-size: 13px;
+        padding: 9px 10px;
     }
 
 }

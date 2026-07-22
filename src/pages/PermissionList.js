@@ -4,6 +4,12 @@ import { FiClock, FiCheckCircle, FiXCircle, FiRefreshCw, FiAlertCircle, FiSearch
 import Lottie from "lottie-react";
 import animationData from "../LottieFiles/Allow Permission.json";
 
+const COMPANY_API = 'https://store.mpdatahub.com/api/list-company';
+const BRANCH_API = 'https://store.mpdatahub.com/api/get-branch-for-company?company_id=';
+
+const PERMISSION_LIST_BASE = 'https://store.mpdatahub.com/api/permission-list-by-branch';
+const APPROVE_PERMISSION_API = 'https://store.mpdatahub.com/api/approve-permission';
+
 const STATUS_CONFIG = {
   approved: {
     label: 'Approved',
@@ -20,11 +26,18 @@ const STATUS_CONFIG = {
 
 export default function PermissionList() {
   const [permissions, setPermissions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState({ branch_name: '', total: 0 });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [updatingId, setUpdatingId] = useState(null);
+
+  // Company / Branch dropdown state
+  const [companies, setCompanies] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
 
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1);
@@ -59,21 +72,84 @@ export default function PermissionList() {
     }));
   };
 
+  /* ---------------- INITIAL LOAD: companies ---------------- */
+
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  /* ---------------- FETCH COMPANIES ---------------- */
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(COMPANY_API);
+      const json = await res.json();
+
+      if (json.success) {
+        setCompanies(json.data);
+
+        if (json.data.length > 0) {
+          const firstCompany = json.data[0].id;
+          setSelectedCompany(firstCompany);
+          fetchBranches(firstCompany, true);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  /* ---------------- FETCH BRANCHES FOR A COMPANY ---------------- */
+
+  const fetchBranches = async (companyId, autoSelectFirst = false) => {
+    try {
+      const res = await fetch(`${BRANCH_API}${companyId}`);
+      const json = await res.json();
+
+      if (json.success) {
+        setBranches(json.data);
+
+        if (autoSelectFirst && json.data.length > 0) {
+          setSelectedBranch(json.data[0].id);
+        } else if (json.data.length === 0) {
+          setSelectedBranch('');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  /* ---------------- COMPANY CHANGE HANDLER ---------------- */
+
+  const handleCompanyChange = (e) => {
+    const companyId = e.target.value;
+    setSelectedCompany(companyId);
+    setSelectedBranch('');
+    setBranches([]);
+    fetchBranches(companyId, true);
+  };
+
+  /* ---------------- BRANCH CHANGE HANDLER ---------------- */
+
+  const handleBranchChange = (e) => {
+    setSelectedBranch(e.target.value);
+  };
+
+  /* ---------------- UPDATE STATUS ---------------- */
+
   const updateStatus = async (id, newStatus) => {
     if (updatingId) return;
     try {
       setUpdatingId(id);
-      const res = await fetch(
-        `https://store.mpdatahub.com/api/approve-permission/${id}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-          body: JSON.stringify({ status: newStatus }),
-        }
-      );
+      const res = await fetch(`${APPROVE_PERMISSION_API}/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
 
       const data = await res.json();
       if (data.success) {
@@ -91,30 +167,50 @@ export default function PermissionList() {
     }
   };
 
+  /* ---------------- FETCH PERMISSIONS FOR SELECTED BRANCH + DATE FILTER ---------------- */
+
   useEffect(() => {
+    if (!selectedBranch) return;
+
     const fetchPermissions = async () => {
       try {
         setLoading(true);
         setError(null);
+
         const res = await fetch(
-          `https://store.mpdatahub.com/api/premissionlist?user_id=${dateFilter.user_id}&month=${dateFilter.month}&year=${dateFilter.year}`
+          `${PERMISSION_LIST_BASE}?branch_id=${selectedBranch}&user_id=${dateFilter.user_id}&month=${dateFilter.month}&year=${dateFilter.year}`
         );
         const json = await res.json();
 
         if (json.success) {
           setPermissions(json.data || []);
+          setMeta({
+            branch_name: json.branch_name || '',
+            total: json.total_permissions || 0,
+          });
         } else {
           setError('Failed to fetch permission list');
+          setPermissions([]);
         }
       } catch (err) {
         setError('Network error. Please try again later.');
         console.error(err);
+        setPermissions([]);
       } finally {
         setLoading(false);
       }
     };
+
     fetchPermissions();
-  }, [dateFilter]);
+  }, [selectedBranch, dateFilter]);
+
+  const refetchPermissions = () => {
+    setDateFilter({
+      user_id: '',
+      month: currentMonth,
+      year: currentYear,
+    });
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '—';
@@ -169,26 +265,6 @@ export default function PermissionList() {
     approved: permissions.filter((p) => p.status === 'approved').length,
     pending: permissions.filter((p) => p.status === 'pending').length,
     rejected: permissions.filter((p) => p.status === 'rejected').length,
-  };
-
-  /* ---------------- GROUP BY BRANCH ---------------- */
-  const groupByBranch = (list) => {
-    const groups = {};
-
-    list.forEach((perm) => {
-      const key = perm.branch_id ?? 'unassigned';
-
-      if (!groups[key]) {
-        groups[key] = {
-          branch_id: perm.branch_id,
-          branch_name: perm.branch_name || 'Unassigned Branch',
-          items: [],
-        };
-      }
-      groups[key].items.push(perm);
-    });
-
-    return Object.values(groups);
   };
 
   const renderPermissionRow = (p, idx) => {
@@ -266,11 +342,47 @@ export default function PermissionList() {
           <Lottie animationData={animationData} loop={true} style={{ width: 70, height: 70 }} />
           <div>
             <h1>Permission List</h1>
-            <p>Total {counts.all} permission requests found</p>
+            <p>
+              {meta.branch_name ? `${meta.branch_name} · ` : ''}
+              Total {counts.all} permission requests found
+            </p>
           </div>
         </div>
 
         <div className="permission-controls">
+          {/* COMPANY DROPDOWN */}
+          <select
+            className="branch-select"
+            value={selectedCompany}
+            onChange={handleCompanyChange}
+          >
+            <option value="" disabled>
+              Select Company
+            </option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+
+          {/* BRANCH DROPDOWN */}
+          <select
+            className="branch-select"
+            value={selectedBranch}
+            onChange={handleBranchChange}
+            disabled={branches.length === 0}
+          >
+            <option value="" disabled>
+              Select Branch
+            </option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+
           <div className="pl-search-wrap">
             <FiSearch className="pl-search-icon" />
             <input
@@ -283,13 +395,7 @@ export default function PermissionList() {
           </div>
           <button
             className={`pl-refresh-btn ${loading ? 'spinning' : ''}`}
-            onClick={() =>
-              setDateFilter({
-                user_id: '',
-                month: currentMonth,
-                year: currentYear,
-              })
-            }
+            onClick={refetchPermissions}
             disabled={loading}
           >
             <FiRefreshCw />
@@ -312,8 +418,12 @@ export default function PermissionList() {
         </div>
         <div className="form-group">
           <label>Year Filter</label>
-          <select name="year" value={dateFilter.year} onChange={handleDate}>
-            {[2026, 2025, 2024, 2023].map((y) => (
+          <select
+            name="year"
+            value={dateFilter.year}
+            onChange={handleDate}
+          >
+            {Array.from({ length: 11 }, (_, i) => currentYear - 5 + i).map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>
@@ -335,66 +445,52 @@ export default function PermissionList() {
         ))}
       </div>
 
-      {!loading && !error && permissions.length > 0 && (
-        <div className="pl-summary-grid">
-          <div className="pl-summary-card pl-summary-total">
-            <span className="pl-card-num">{counts.all}</span>
-            <span className="pl-card-label">Total Applied</span>
-          </div>
-          <div className="pl-summary-card pl-summary-approved">
-            <span className="pl-card-num">{counts.approved}</span>
-            <span className="pl-card-label">Approved</span>
-          </div>
-          <div className="pl-summary-card pl-summary-pending">
-            <span className="pl-card-num">{counts.pending}</span>
-            <span className="pl-card-label">Pending</span>
-          </div>
-          <div className="pl-summary-card pl-summary-rejected">
-            <span className="pl-card-num">{counts.rejected}</span>
-            <span className="pl-card-label">Rejected</span>
-          </div>
-        </div>
-      )}
-
-      {loading && permissions.length === 0 ? (
+      {!selectedBranch ? (
         <div className="pl-center">
-          <div className="pl-spinner"></div>
-          <p>Fetching permissions...</p>
-        </div>
-      ) : error ? (
-        <div className="pl-error">
-          <span>
-            <FiAlertCircle /> {error}
-          </span>
-          <button
-            className="pl-retry-btn"
-            onClick={() =>
-              setDateFilter({
-                user_id: '',
-                month: currentMonth,
-                year: currentYear,
-              })
-            }
-          >
-            Retry
-          </button>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="pl-center">
-          <p>No permission records found.</p>
+          <p>Select a company and branch to view permission records.</p>
         </div>
       ) : (
-        groupByBranch(filtered).map((group) => (
-          <div className="branch-section" key={group.branch_id ?? 'unassigned'}>
-            <div className="branch-section-header">
-              <span className="branch-id-badge">
-                Branch {group.branch_id ?? '-'}
-              </span>
-              <h2 className="branch-section-title">{group.branch_name}</h2>
-              <span className="branch-section-tag">Permission Records</span>
-              <span className="branch-section-count">{group.items.length}</span>
+        <>
+          {!loading && !error && permissions.length > 0 && (
+            <div className="pl-summary-grid">
+              <div className="pl-summary-card pl-summary-total">
+                <span className="pl-card-num">{counts.all}</span>
+                <span className="pl-card-label">Total Applied</span>
+              </div>
+              <div className="pl-summary-card pl-summary-approved">
+                <span className="pl-card-num">{counts.approved}</span>
+                <span className="pl-card-label">Approved</span>
+              </div>
+              <div className="pl-summary-card pl-summary-pending">
+                <span className="pl-card-num">{counts.pending}</span>
+                <span className="pl-card-label">Pending</span>
+              </div>
+              <div className="pl-summary-card pl-summary-rejected">
+                <span className="pl-card-num">{counts.rejected}</span>
+                <span className="pl-card-label">Rejected</span>
+              </div>
             </div>
+          )}
 
+          {loading && permissions.length === 0 ? (
+            <div className="pl-center">
+              <div className="pl-spinner"></div>
+              <p>Fetching permissions...</p>
+            </div>
+          ) : error ? (
+            <div className="pl-error">
+              <span>
+                <FiAlertCircle /> {error}
+              </span>
+              <button className="pl-retry-btn" onClick={refetchPermissions}>
+                Retry
+              </button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="pl-center">
+              <p>No permission records found.</p>
+            </div>
+          ) : (
             <div className="pl-table-container">
               <table className="pl-table">
                 <thead>
@@ -412,12 +508,12 @@ export default function PermissionList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {group.items.map((p, idx) => renderPermissionRow(p, idx))}
+                  {filtered.map((p, idx) => renderPermissionRow(p, idx))}
                 </tbody>
               </table>
             </div>
-          </div>
-        ))
+          )}
+        </>
       )}
     </div>
   );
