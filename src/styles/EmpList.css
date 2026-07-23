@@ -427,15 +427,20 @@ input:checked + .slider:before {
   justify-content: center;
   align-items: center;
   z-index: 999;
+  padding: 24px;
 }
 
 .modal-box {
   width: 100%;
   max-width: 660px;
+  max-height: 90vh;
   background: white;
   border-radius: 20px;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
   animation: modal 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 @keyframes modal {
@@ -450,14 +455,15 @@ input:checked + .slider:before {
   }
 }
 
-/* MODAL HEADER */
+/* MODAL HEADER (fixed) */
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0px 24px;
+  padding: 18px 24px;
   border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -477,16 +483,53 @@ input:checked + .slider:before {
   cursor: pointer;
 }
 
+/* MODAL BODY (scrolls) */
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px 8px;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* FORM */
 
 .modal-form {
-  padding: 2px 24px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 16px 16px;
 }
 
-.modal-form input {
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.form-group--full {
+  grid-column: span 2;
+}
+
+.modal-form input,
+.modal-form select {
   padding: 10px 12px;
   border: 1.5px solid #e2e8f0;
   border-radius: 10px;
@@ -494,25 +537,26 @@ input:checked + .slider:before {
   font-size: 14px;
   outline: none;
   transition: 0.2s;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.modal-form input:focus {
+.modal-form input:focus,
+.modal-form select:focus {
   border-color: #0284c7;
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
 }
 
-.modal-form input[name='address'] {
-  grid-column: span 2;
-}
-
-/* FOOTER */
+/* FOOTER (fixed) */
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 8px 24px;
+  padding: 16px 24px;
   border-top: 1px solid #f1f5f9;
+  flex-shrink: 0;
+  background: white;
 }
 
 .btn-cancel {
@@ -547,12 +591,12 @@ input:checked + .slider:before {
   background: #fee2e2;
   color: #dc2626;
   padding: 10px 15px;
-  margin: 15px 24px;
+  margin: 0 0 15px;
   border-radius: 10px;
   font-size: 13px;
 }
 
-/* ================= ADD THESE TO EmpList.css ================= */
+/* ================= HEADER CONTROLS ================= */
 
 .emplist-header-controls {
   display: flex;
@@ -598,7 +642,7 @@ input:checked + .slider:before {
 /* ===================== CHANGE PASSWORD SECTION ===================== */
 
 .password-section {
-  padding: 4px 24px 8px;
+  padding: 4px 0 8px;
   border-top: 1px solid #f1f5f9;
   margin-top: 6px;
 }
@@ -785,13 +829,14 @@ input:checked + .slider:before {
 
   .modal-box {
     max-width: 90%;
+    max-height: 92vh;
   }
 
   .modal-form {
     grid-template-columns: 1fr;
   }
 
-  .modal-form input[name='address'] {
+  .form-group--full {
     grid-column: span 1;
   }
 }
@@ -871,6 +916,7 @@ input:checked + .slider:before {
 
   .modal-box {
     max-width: 95%;
+    max-height: 94vh;
     border-radius: 16px;
   }
 
@@ -878,8 +924,13 @@ input:checked + .slider:before {
     font-size: 16px;
   }
 
+  .modal-body {
+    padding: 16px 18px 6px;
+  }
+
   .modal-footer {
     flex-direction: column;
+    padding: 14px 18px;
   }
 
   .btn-cancel,

@@ -290,6 +290,7 @@ export default function EmpList() {
       branch_id: emp.branch_id || selectedBranch || "",
       start_time: emp.start_time ? emp.start_time.slice(0, 5) : "",
       end_time: emp.end_time ? emp.end_time.slice(0, 5) : "",
+      salary: emp.salary ?? "",
     });
 
     // load branches for whichever company this employee belongs to
@@ -409,6 +410,9 @@ export default function EmpList() {
       if (editData.position) formData.append('position', editData.position);
       if (editData.address) formData.append('address', editData.address);
       if (editData.dob) formData.append('dob', editData.dob);
+      if (editData.salary !== '' && editData.salary !== null && editData.salary !== undefined) {
+        formData.append('salary', editData.salary);
+      }
       if (editData.start_time) {
         formData.append('start_time', formatToHMS(editData.start_time));
       }
@@ -479,6 +483,17 @@ export default function EmpList() {
   const currentBranchName =
     branches.find((b) => String(b.id) === String(selectedBranch))?.name || '';
 
+  const formatSalary = (salary) => {
+    if (salary === null || salary === undefined || salary === '') return 'N/A';
+    const num = Number(salary);
+    if (Number.isNaN(num)) return salary;
+    return num.toLocaleString('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    });
+  };
+
   const renderEmpCard = (emp) => (
     <div className="emp-card" key={emp.id}>
       <div className="emp-card-top">
@@ -506,6 +521,9 @@ export default function EmpList() {
         </p>
         <p>
           <strong>Address:</strong> {emp.address}
+        </p>
+        <p>
+          <strong>Salary:</strong> {formatSalary(emp.salary)}
         </p>
         <p>
           <strong>Work Time:</strong>{' '}
@@ -666,202 +684,216 @@ export default function EmpList() {
               </button>
             </div>
 
-            {saveError && <div className="modal-api-error">{saveError}</div>}
+            <div className="modal-body">
+              {saveError && <div className="modal-api-error">{saveError}</div>}
 
-            <div className="modal-form">
+              <div className="modal-form">
 
-              <div className="form-group">
-                <label>Name</label>
-                <input
-                  name="name"
-                  value={editData.name}
-                  onChange={handleEditChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Employee ID</label>
-                <input
-                  name="empid"
-                  value={editData.empid}
-                  onChange={handleEditChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Email</label>
-                <input
-                  name="email"
-                  value={editData.email}
-                  onChange={handleEditChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Mobile</label>
-                <input
-                  name="mobile"
-                  value={editData.mobile}
-                  onChange={handleEditChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Position</label>
-                <input
-                  name="position"
-                  value={editData.position}
-                  onChange={handleEditChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Role</label>
-
-                <select
-                  name="role_id"
-                  value={editData.role_id}
-                  onChange={handleEditChange}
-                >
-                  {roles.map(role => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Company</label>
-
-                <select
-                  name="company_id"
-                  value={editData.company_id}
-                  onChange={(e) => {
-                    handleEditChange(e);
-                    fetchEditBranches(e.target.value);
-                  }}
-                >
-                  {companies.map(company => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Branch</label>
-
-                <select
-                  name="branch_id"
-                  value={editData.branch_id}
-                  onChange={handleEditChange}
-                >
-                  {editBranches.map(branch => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Date of Birth</label>
-                <input
-                  type="date"
-                  name="dob"
-                  value={editData.dob}
-                  onChange={handleEditChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Address</label>
-                <input
-                  name="address"
-                  value={editData.address}
-                  onChange={handleEditChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Start Time</label>
-                <input
-                  type="time"
-                  name="start_time"
-                  value={editData.start_time}
-                  onChange={handleEditChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>End Time</label>
-                <input
-                  type="time"
-                  name="end_time"
-                  value={editData.end_time}
-                  onChange={handleEditChange}
-                />
-              </div>
-
-            </div>
-
-            {/* ===================== CHANGE PASSWORD SECTION ===================== */}
-            <div className="password-section">
-              <button
-                type="button"
-                className="btn-change-password"
-                onClick={togglePasswordChange}
-              >
-                <FiLock /> {showPasswordChange ? 'Cancel Password Change' : 'Change Password'}
-              </button>
-
-              {showPasswordChange && (
-                <div className="password-fields">
-                  {passwordError && (
-                    <div className="modal-api-error">{passwordError}</div>
-                  )}
-
-                  <div className="form-group password-input-group">
-                    <label>New Password</label>
-                    <div className="password-input-wrap">
-                      <input
-                        type={showPwd ? 'text' : 'password'}
-                        name="newPassword"
-                        placeholder="Enter new password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                      />
-                      <span
-                        className="password-toggle-icon"
-                        onClick={() => setShowPwd((p) => !p)}
-                      >
-                        {showPwd ? <FiEyeOff /> : <FiEye />}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="form-group password-input-group">
-                    <label>Confirm Password</label>
-                    <div className="password-input-wrap">
-                      <input
-                        type={showConfirmPwd ? 'text' : 'password'}
-                        name="confirmPassword"
-                        placeholder="Re-enter new password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                      />
-                      <span
-                        className="password-toggle-icon"
-                        onClick={() => setShowConfirmPwd((p) => !p)}
-                      >
-                        {showConfirmPwd ? <FiEyeOff /> : <FiEye />}
-                      </span>
-                    </div>
-                  </div>
+                <div className="form-group">
+                  <label>Name</label>
+                  <input
+                    name="name"
+                    value={editData.name}
+                    onChange={handleEditChange}
+                  />
                 </div>
-              )}
+
+                <div className="form-group">
+                  <label>Employee ID</label>
+                  <input
+                    name="empid"
+                    value={editData.empid}
+                    onChange={handleEditChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    name="email"
+                    value={editData.email}
+                    onChange={handleEditChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Mobile</label>
+                  <input
+                    name="mobile"
+                    value={editData.mobile}
+                    onChange={handleEditChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Position</label>
+                  <input
+                    name="position"
+                    value={editData.position}
+                    onChange={handleEditChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Salary</label>
+                  <input
+                    type="number"
+                    name="salary"
+                    min="0"
+                    step="0.01"
+                    value={editData.salary}
+                    onChange={handleEditChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Role</label>
+
+                  <select
+                    name="role_id"
+                    value={editData.role_id}
+                    onChange={handleEditChange}
+                  >
+                    {roles.map(role => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Company</label>
+
+                  <select
+                    name="company_id"
+                    value={editData.company_id}
+                    onChange={(e) => {
+                      handleEditChange(e);
+                      fetchEditBranches(e.target.value);
+                    }}
+                  >
+                    {companies.map(company => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Branch</label>
+
+                  <select
+                    name="branch_id"
+                    value={editData.branch_id}
+                    onChange={handleEditChange}
+                  >
+                    {editBranches.map(branch => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Date of Birth</label>
+                  <input
+                    type="date"
+                    name="dob"
+                    value={editData.dob}
+                    onChange={handleEditChange}
+                  />
+                </div>
+
+                <div className="form-group form-group--full">
+                  <label>Address</label>
+                  <input
+                    name="address"
+                    value={editData.address}
+                    onChange={handleEditChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Start Time</label>
+                  <input
+                    type="time"
+                    name="start_time"
+                    value={editData.start_time}
+                    onChange={handleEditChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>End Time</label>
+                  <input
+                    type="time"
+                    name="end_time"
+                    value={editData.end_time}
+                    onChange={handleEditChange}
+                  />
+                </div>
+
+              </div>
+
+              {/* ===================== CHANGE PASSWORD SECTION ===================== */}
+              <div className="password-section">
+                <button
+                  type="button"
+                  className="btn-change-password"
+                  onClick={togglePasswordChange}
+                >
+                  <FiLock /> {showPasswordChange ? 'Cancel Password Change' : 'Change Password'}
+                </button>
+
+                {showPasswordChange && (
+                  <div className="password-fields">
+                    {passwordError && (
+                      <div className="modal-api-error">{passwordError}</div>
+                    )}
+
+                    <div className="form-group password-input-group">
+                      <label>New Password</label>
+                      <div className="password-input-wrap">
+                        <input
+                          type={showPwd ? 'text' : 'password'}
+                          name="newPassword"
+                          placeholder="Enter new password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                        />
+                        <span
+                          className="password-toggle-icon"
+                          onClick={() => setShowPwd((p) => !p)}
+                        >
+                          {showPwd ? <FiEyeOff /> : <FiEye />}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="form-group password-input-group">
+                      <label>Confirm Password</label>
+                      <div className="password-input-wrap">
+                        <input
+                          type={showConfirmPwd ? 'text' : 'password'}
+                          name="confirmPassword"
+                          placeholder="Re-enter new password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                        />
+                        <span
+                          className="password-toggle-icon"
+                          onClick={() => setShowConfirmPwd((p) => !p)}
+                        >
+                          {showConfirmPwd ? <FiEyeOff /> : <FiEye />}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="modal-footer">

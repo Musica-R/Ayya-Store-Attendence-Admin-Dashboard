@@ -23,6 +23,7 @@ const RegistrationForm = () => {
     start_time: '',
     end_time: '',
     dob: '',
+    salary: '',
     profileimg: null,
   });
 
@@ -208,6 +209,7 @@ const RegistrationForm = () => {
           start_time: '',
           end_time: '',
           dob: '',
+          salary: '',
           profileimg: null,
         });
       } else {
@@ -431,6 +433,20 @@ const RegistrationForm = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* SALARY */}
+          <div className="form-group">
+            <label>Salary</label>
+            <input
+              type="number"
+              name="salary"
+              value={formData.salary}
+              onChange={handleChange}
+              min="0"
+              step="0.01"
+              required
+            />
           </div>
 
           {/* START TIME */}

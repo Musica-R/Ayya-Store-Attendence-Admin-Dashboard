@@ -7,7 +7,7 @@ import { MdOutlineNotificationsActive } from 'react-icons/md';
 import { GoOrganization } from 'react-icons/go';
 import { IoTicketOutline } from 'react-icons/io5';
 import logo from "../assets/logo.png";
-
+import { BsCurrencyDollar } from "react-icons/bs";
 
 
 const AdminLayout = () => {
@@ -45,7 +45,7 @@ const AdminLayout = () => {
             <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
                 <div className="sidebar-header">
 
-                     <div className="brand-section">
+                    <div className="brand-section">
                         <img src={logo} alt="Logo" className="brand-logo" />
                         <h2>Admin Panel</h2>
                     </div>
@@ -127,6 +127,10 @@ const AdminLayout = () => {
                         onClick={closeSidebar}
                     >
                         <GoOrganization className="nav-icon" /> <span>Management</span>
+                    </NavLink>
+
+                    <NavLink to="/admin/payroll-list" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'} onClick={closeSidebar}>
+                        <BsCurrencyDollar className="nav-icon" /> <span>Payroll</span>
                     </NavLink>
 
                     <NavLink
