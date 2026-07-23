@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/EmpList.css';
-import { FiEdit2, FiX, FiSave, FiSearch, FiPlus } from 'react-icons/fi';
+import { FiEdit2, FiX, FiSave, FiSearch, FiPlus, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import Lottie from "lottie-react";
 import animationData from "../LottieFiles/Employee Search.json";
 
@@ -50,6 +50,14 @@ export default function EmpList() {
 
   // active | inactive | intern | inactive_intern
   const [filterStatus, setFilterStatus] = useState('active');
+
+  /* ---------------- PASSWORD CHANGE STATE (edit modal) ---------------- */
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   /* ---------------- INITIAL LOAD: companies + roles ---------------- */
 
@@ -287,7 +295,25 @@ export default function EmpList() {
     // load branches for whichever company this employee belongs to
     fetchEditBranches(emp.company_id || selectedCompany);
 
+    // reset password-change UI every time the modal is opened for a (possibly different) employee
+    setShowPasswordChange(false);
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPwd(false);
+    setShowConfirmPwd(false);
+    setPasswordError('');
+
     setEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setEditModal(false);
+    setShowPasswordChange(false);
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPwd(false);
+    setShowConfirmPwd(false);
+    setPasswordError('');
   };
 
   const fetchEditBranches = async (companyId) => {
@@ -327,6 +353,17 @@ export default function EmpList() {
     }));
   };
 
+  /* ---------------- TOGGLE PASSWORD CHANGE PANEL ---------------- */
+
+  const togglePasswordChange = () => {
+    setShowPasswordChange((prev) => !prev);
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPwd(false);
+    setShowConfirmPwd(false);
+    setPasswordError('');
+  };
+
   /* ---------------- SAVE EDIT ---------------- */
 
   const saveEdit = async () => {
@@ -335,8 +372,25 @@ export default function EmpList() {
       return;
     }
 
+    // validate password fields only if the user opened the panel and is trying to change it
+    if (showPasswordChange) {
+      if (!newPassword || !confirmPassword) {
+        setPasswordError('Please fill in both password fields');
+        return;
+      }
+      if (newPassword.length < 6) {
+        setPasswordError('Password must be at least 6 characters');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setPasswordError('Passwords do not match');
+        return;
+      }
+    }
+
     setSaving(true);
     setSaveError('');
+    setPasswordError('');
 
     try {
       const formData = new FormData();
@@ -366,6 +420,11 @@ export default function EmpList() {
       formData.append("company_id", editData.company_id);
       formData.append("branch_id", editData.branch_id);
 
+      // include password only if the change-password panel was used
+      if (showPasswordChange && newPassword) {
+        formData.append('password', newPassword);
+      }
+
       const res = await fetch(UPDATE_URL, {
         method: 'POST',
         body: formData,
@@ -381,7 +440,7 @@ export default function EmpList() {
           fetchAllListsForBranch(selectedBranch);
         }
 
-        setEditModal(false);
+        closeEditModal();
       } else {
         setSaveError(json.message || 'Update failed');
       }
@@ -601,7 +660,7 @@ export default function EmpList() {
 
               <button
                 className="modal-close"
-                onClick={() => setEditModal(false)}
+                onClick={closeEditModal}
               >
                 <FiX />
               </button>
@@ -748,10 +807,67 @@ export default function EmpList() {
 
             </div>
 
+            {/* ===================== CHANGE PASSWORD SECTION ===================== */}
+            <div className="password-section">
+              <button
+                type="button"
+                className="btn-change-password"
+                onClick={togglePasswordChange}
+              >
+                <FiLock /> {showPasswordChange ? 'Cancel Password Change' : 'Change Password'}
+              </button>
+
+              {showPasswordChange && (
+                <div className="password-fields">
+                  {passwordError && (
+                    <div className="modal-api-error">{passwordError}</div>
+                  )}
+
+                  <div className="form-group password-input-group">
+                    <label>New Password</label>
+                    <div className="password-input-wrap">
+                      <input
+                        type={showPwd ? 'text' : 'password'}
+                        name="newPassword"
+                        placeholder="Enter new password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <span
+                        className="password-toggle-icon"
+                        onClick={() => setShowPwd((p) => !p)}
+                      >
+                        {showPwd ? <FiEyeOff /> : <FiEye />}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="form-group password-input-group">
+                    <label>Confirm Password</label>
+                    <div className="password-input-wrap">
+                      <input
+                        type={showConfirmPwd ? 'text' : 'password'}
+                        name="confirmPassword"
+                        placeholder="Re-enter new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                      <span
+                        className="password-toggle-icon"
+                        onClick={() => setShowConfirmPwd((p) => !p)}
+                      >
+                        {showConfirmPwd ? <FiEyeOff /> : <FiEye />}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="modal-footer">
               <button
                 className="btn-cancel"
-                onClick={() => setEditModal(false)}
+                onClick={closeEditModal}
               >
                 Cancel
               </button>

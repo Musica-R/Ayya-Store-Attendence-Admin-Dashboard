@@ -280,7 +280,7 @@ export default function PermissionList() {
         <td>
           <div className="pl-emp-info">
             <span className="pl-name">{p.name}</span>
-            {p.empid && <span className="pl-empid">{p.empid}</span>}
+            {/* {p.empid && <span className="pl-empid">{p.empid}</span>} */}
           </div>
         </td>
         <td>{formatDate(p.attendance_date)}</td>

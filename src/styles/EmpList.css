@@ -595,6 +595,92 @@ input:checked + .slider:before {
   background: #ebebed;
 }
 
+/* ===================== CHANGE PASSWORD SECTION ===================== */
+
+.password-section {
+  padding: 4px 24px 8px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 6px;
+}
+
+.btn-change-password {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0284c7;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-change-password:hover {
+  background: #e0f2fe;
+  border-color: #0ea5e9;
+}
+
+.password-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.password-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrap input {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-family: 'Outfit';
+  font-size: 14px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.password-input-wrap input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.password-toggle-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.password-toggle-icon:hover {
+  color: #0284c7;
+}
+
+@media (max-width: 768px) {
+  .password-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .emplist-header-controls {
     flex-direction: column;
