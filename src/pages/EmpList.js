@@ -10,6 +10,7 @@ const BRANCH_API = "https://store.mpdatahub.com/api/get-branch-for-company?compa
 
 const UPDATE_URL = 'https://store.mpdatahub.com/api/update-profile';
 const ROLE_API = "https://store.mpdatahub.com/api/roles";
+const POSITION_API = "https://store.mpdatahub.com/api/positions";
 
 // Branch-filtered list APIs
 const API_URL_BASE = 'https://store.mpdatahub.com/api/employee-list-by-branch?branch_id=';
@@ -39,6 +40,11 @@ export default function EmpList() {
 
   const [roles, setRoles] = useState([]);
 
+  /* ================= POSITIONS STATE ================= */
+  // Same source of truth as the Registration form's Position dropdown.
+  const [positions, setPositions] = useState([]);
+  const [loadingPositions, setLoadingPositions] = useState(false);
+
   // Company / Branch dropdown state
   const [companies, setCompanies] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -59,10 +65,11 @@ export default function EmpList() {
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
-  /* ---------------- INITIAL LOAD: companies + roles ---------------- */
+  /* ---------------- INITIAL LOAD: companies + roles + positions ---------------- */
 
   useEffect(() => {
     fetchRoles();
+    fetchPositions();
     fetchCompanies();
   }, []);
 
@@ -247,6 +254,32 @@ export default function EmpList() {
       console.log(err);
     }
   };
+
+  /* ---------------- FETCH POSITIONS ---------------- */
+  // Same endpoint + response shape (result.status / result.data) used on the Registration form.
+
+  const fetchPositions = async () => {
+    setLoadingPositions(true);
+
+    try {
+      const res = await fetch(POSITION_API);
+      const json = await res.json();
+
+      if (json.status) {
+        setPositions(json.data);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+
+    setLoadingPositions(false);
+  };
+
+  // Only positions that are Active + isActive show up as selectable
+  // options on the edit modal's Position dropdown (mirrors Registration form)
+  const selectablePositions = positions.filter(
+    (p) => p.islotlog === 'Active' && (p.isActive === true || p.isActive === 1)
+  );
 
   /* ---------------- UPDATE EMPLOYEE STATUS ---------------- */
 
@@ -725,13 +758,38 @@ export default function EmpList() {
                   />
                 </div>
 
+                {/* POSITION — dropdown sourced from the same /positions API used on the
+                    Registration form. Options use position_name (not id) as the value
+                    because existing employee records store position as text, so the
+                    employee's current position is pre-selected automatically. */}
                 <div className="form-group">
                   <label>Position</label>
-                  <input
+
+                  <select
                     name="position"
                     value={editData.position}
                     onChange={handleEditChange}
-                  />
+                  >
+                    <option value="">
+                      {loadingPositions ? 'Loading...' : 'Select Position'}
+                    </option>
+
+                    {/* Keep the employee's current value visible/selected even if it
+                        doesn't match any active position (custom or differently-cased
+                        entries in the existing data) */}
+                    {editData.position &&
+                      !selectablePositions.some(
+                        (pos) => pos.position_name.toLowerCase() === editData.position.toLowerCase()
+                      ) && (
+                        <option value={editData.position}>{editData.position}</option>
+                      )}
+
+                    {selectablePositions.map((pos) => (
+                      <option key={pos.id} value={pos.position_name}>
+                        {pos.position_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group">

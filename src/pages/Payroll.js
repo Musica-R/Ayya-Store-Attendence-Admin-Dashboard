@@ -7,6 +7,10 @@ import logo from "../assets/logo.png";
 
 const BASE_URL = 'https://store.mpdatahub.com/api';
 
+const COMPANY_API = `${BASE_URL}/list-company`;
+const BRANCH_API = `${BASE_URL}/get-branch-for-company?company_id=`;
+const EMPLOYEE_LIST_BY_BRANCH = `${BASE_URL}/employee-list-by-branch?branch_id=`;
+
 const today = new Date();
 const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
@@ -406,7 +410,7 @@ function SummaryCards({ data, period, meta }) {
 /* ─────────────────────────────────────────────
    MONTHLY PAYROLL TAB
 ───────────────────────────────────────────── */
-function MonthlyPayroll({ employees }) {
+function MonthlyPayroll({ employees, branchId }) {
   const now = new Date();
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
@@ -419,15 +423,27 @@ function MonthlyPayroll({ employees }) {
   const [activeSlip, setActiveSlip] = useState(null);
   const [activeEmployee, setActiveEmployee] = useState(null);
 
-  /* ── VIEW already-generated report ── */
+  // Reset the report whenever the branch changes so stale data isn't shown
+  useEffect(() => {
+    setList([]);
+    setMode(null);
+    setError(null);
+  }, [branchId]);
+
+  /* ── VIEW already-generated report (branch-wise) ── */
   const handleViewReport = async () => {
+    if (!branchId) {
+      setError('Please select a company and branch first.');
+      return;
+    }
+
     setViewing(true);
     setError(null);
     setList([]);
     setMode(null);
     try {
       const res = await fetch(
-        `${BASE_URL}/salary-Slip-List?month=${Number(month)}&year=${Number(year)}`
+        `${BASE_URL}/salary-Slip-List-branch?month=${Number(month)}&year=${Number(year)}&branch_id=${branchId}`
       );
       const result = await res.json();
       if (result.success) {
@@ -447,17 +463,22 @@ function MonthlyPayroll({ employees }) {
     }
   };
 
-  /* ── GENERATE salary for a new month ── */
+  /* ── GENERATE salary for a new month (branch-wise) ── */
   const handleGenerate = async () => {
+    if (!branchId) {
+      setError('Please select a company and branch first.');
+      return;
+    }
+
     setGenerating(true);
     setError(null);
     setList([]);
     setMode(null);
     try {
-      const res = await fetch(`${BASE_URL}/salary-generate-month`, {
+      const res = await fetch(`${BASE_URL}/salary-generate-month-branch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month: Number(month), year: Number(year) }),
+        body: JSON.stringify({ month: Number(month), year: Number(year), branch_id: Number(branchId) }),
       });
       const result = await res.json();
       if (result.success) {
@@ -536,14 +557,14 @@ function MonthlyPayroll({ employees }) {
             <button
               className="pay-view-report-btn"
               onClick={handleViewReport}
-              disabled={isBusy}
+              disabled={isBusy || !branchId}
             >
               {viewing ? 'Loading…' : 'View Report'}
             </button>
             <button
               className="pay-generate-btn"
               onClick={handleGenerate}
-              disabled={isBusy}
+              disabled={isBusy || !branchId}
             >
               {generating ? 'Generating…' : 'Generate Salary'}
             </button>
@@ -552,9 +573,13 @@ function MonthlyPayroll({ employees }) {
         </div>
       </div>
 
-      {error && <div className="pay-state pay-state--error">{error}</div>}
+      {!branchId && (
+        <div className="pay-state">Select a company and branch to view or generate payroll.</div>
+      )}
 
-      {!mode && !error && (
+      {branchId && error && <div className="pay-state pay-state--error">{error}</div>}
+
+      {branchId && !mode && !error && (
         <div className="pay-state">
           Select a month and year — click <strong>View Report</strong> to see existing payroll,
           or <strong>Generate Salary</strong> to compute a new month.
@@ -657,18 +682,20 @@ function MonthlyPayroll({ employees }) {
 /* ─────────────────────────────────────────────
    DAILY PAYROLL TAB
 ───────────────────────────────────────────── */
-function DailyPayroll() {
+function DailyPayroll({ branchId }) {
   const [date] = useState(todayStr);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [meta, setMeta] = useState(null);
 
-  const fetchDaily = async (d) => {
+  const fetchDaily = async (d, branch) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${BASE_URL}/salary-generate-day-day?date=${d}`);
+      const res = await fetch(
+        `${BASE_URL}/salary-generate-day-day-generateSalarybranch?date=${d}&branch_id=${branch}`
+      );
       const result = await res.json();
       if (result.success) {
         setData(result.data || []);
@@ -690,7 +717,15 @@ function DailyPayroll() {
     }
   };
 
-  useEffect(() => { fetchDaily(date); }, [date]);
+  useEffect(() => {
+    if (branchId) {
+      fetchDaily(date, branchId);
+    } else {
+      setData([]);
+      setMeta(null);
+      setError(null);
+    }
+  }, [date, branchId]);
 
   return (
     <div className="pay-content">
@@ -702,13 +737,17 @@ function DailyPayroll() {
         )}
       </div>
 
-      {loading && <div className="pay-state">Loading payroll data…</div>}
-      {error && <div className="pay-state pay-state--error">{error}</div>}
-      {!loading && !error && data.length === 0 && (
+      {!branchId && (
+        <div className="pay-state">Select a company and branch to view today's payroll.</div>
+      )}
+
+      {branchId && loading && <div className="pay-state">Loading payroll data…</div>}
+      {branchId && error && <div className="pay-state pay-state--error">{error}</div>}
+      {branchId && !loading && !error && data.length === 0 && (
         <div className="pay-state">No records found for the selected date.</div>
       )}
 
-      {!loading && !error && data.length > 0 && (
+      {branchId && !loading && !error && data.length > 0 && (
         <>
           <SummaryCards data={data} meta={meta} />
           <div className="pay-table-wrapper">
@@ -766,18 +805,128 @@ export default function Payroll() {
   const [activeTab, setActiveTab] = useState('daily');
   const [employees, setEmployees] = useState([]);
 
+  // Company / Branch dropdown state — same pattern as EmpList
+  const [companies, setCompanies] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
+
+  /* ---------------- INITIAL LOAD: companies ---------------- */
+
   useEffect(() => {
-    fetch(`${BASE_URL}/employee-List`)
-      .then(r => r.json())
-      .then(res => { if (res.success) setEmployees(res.data || []); })
-      .catch(() => { });
+    fetchCompanies();
   }, []);
+
+  /* ---------------- WHEN BRANCH CHANGES: reload employees for that branch ---------------- */
+
+  useEffect(() => {
+    if (selectedBranch) {
+      fetch(`${EMPLOYEE_LIST_BY_BRANCH}${selectedBranch}`)
+        .then(r => r.json())
+        .then(res => { if (res.success) setEmployees(res.data || []); else setEmployees([]); })
+        .catch(() => setEmployees([]));
+    } else {
+      setEmployees([]);
+    }
+  }, [selectedBranch]);
+
+  /* ---------------- FETCH COMPANIES ---------------- */
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(COMPANY_API);
+      const json = await res.json();
+
+      if (json.success) {
+        setCompanies(json.data);
+
+        // auto-select the first company, then load its branches
+        if (json.data.length > 0) {
+          const firstCompany = json.data[0].id;
+          setSelectedCompany(firstCompany);
+          fetchBranches(firstCompany, true);
+        }
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  /* ---------------- FETCH BRANCHES FOR A COMPANY ---------------- */
+
+  const fetchBranches = async (companyId, autoSelectFirst = false) => {
+    try {
+      const res = await fetch(`${BRANCH_API}${companyId}`);
+      const json = await res.json();
+
+      if (json.success) {
+        setBranches(json.data);
+
+        if (autoSelectFirst && json.data.length > 0) {
+          setSelectedBranch(json.data[0].id);
+        } else if (json.data.length === 0) {
+          setSelectedBranch('');
+        }
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  /* ---------------- COMPANY CHANGE HANDLER ---------------- */
+
+  const handleCompanyChange = (e) => {
+    const companyId = e.target.value;
+    setSelectedCompany(companyId);
+    setSelectedBranch('');
+    setBranches([]);
+    fetchBranches(companyId, true);
+  };
+
+  /* ---------------- BRANCH CHANGE HANDLER ---------------- */
+
+  const handleBranchChange = (e) => {
+    setSelectedBranch(e.target.value);
+  };
 
   return (
     <div className="pay-page">
       <div className="pay-header">
-        <h1 className="pay-title">Payroll</h1>
-        <p className="pay-subtitle">Salary computation and disbursement records</p>
+        <div>
+          <h1 className="pay-title">Payroll</h1>
+          <p className="pay-subtitle">Salary computation and disbursement records</p>
+        </div>
+
+        <div className="pay-header-controls">
+          {/* COMPANY DROPDOWN */}
+          <select
+            className="pay-select"
+            value={selectedCompany}
+            onChange={handleCompanyChange}
+          >
+            <option value="" disabled>Select Company</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+
+          {/* BRANCH DROPDOWN */}
+          <select
+            className="pay-select"
+            value={selectedBranch}
+            onChange={handleBranchChange}
+            disabled={branches.length === 0}
+          >
+            <option value="" disabled>Select Branch</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="pay-tabbar">
@@ -795,8 +944,8 @@ export default function Payroll() {
         </button>
       </div>
 
-      {activeTab === 'daily' && <DailyPayroll />}
-      {activeTab === 'monthly' && <MonthlyPayroll employees={employees} />}
+      {activeTab === 'daily' && <DailyPayroll branchId={selectedBranch} />}
+      {activeTab === 'monthly' && <MonthlyPayroll employees={employees} branchId={selectedBranch} />}
     </div>
   );
 }
