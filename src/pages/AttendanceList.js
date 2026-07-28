@@ -10,6 +10,7 @@ import animationData from "../LottieFiles/Completing Tasks.json";
 // ---------------- API ENDPOINTS ----------------
 const COMPANY_API = "https://store.mpdatahub.com/api/list-company";
 const BRANCH_API = "https://store.mpdatahub.com/api/get-branch-for-company?company_id=";
+const POSITION_API = "https://store.mpdatahub.com/api/positions";
 
 const ATTENDANCE_PRESENT_API = "https://store.mpdatahub.com/api/attendance-List-branch";
 const ATTENDANCE_ABSENT_API = "https://store.mpdatahub.com/api/attendance-List-absent-branch";
@@ -28,8 +29,10 @@ const AttendanceList = () => {
   // Company / Branch (drives both the daily list & the monthly modal)
   const [companies, setCompanies] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [position, setPosition] = useState([]);
   const [selectedCompany, setSelectedCompany] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
+  const [selectedPosition, setSelectedPosition] = useState('');
 
   // Modal - employee monthly report
   const [employees, setEmployees] = useState([]);
@@ -56,6 +59,7 @@ const AttendanceList = () => {
 
   useEffect(() => {
     fetchCompanies();
+    fetchPosition();
   }, []);
 
   const fetchCompanies = async () => {
@@ -103,6 +107,26 @@ const AttendanceList = () => {
     }
   };
 
+  const fetchPosition = async () => {
+    try {
+      const res = await fetch(POSITION_API);
+      const json = await res.json();
+
+      if (json.status) {
+        setPosition(json.data);
+        if (json.data.length > 0) {
+          setSelectedPosition(json.data[0].id);
+        } else if (json.data.length === 0) {
+          setSelectedPosition('');
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
   const handleCompanyChange = (e) => {
     const companyId = e.target.value;
     setSelectedCompany(companyId);
@@ -114,6 +138,10 @@ const AttendanceList = () => {
 
   const handleBranchChange = (e) => {
     setSelectedBranch(e.target.value);
+  };
+
+  const handlePositionChange = (e) => {
+    setSelectedPosition(e.target.value);
   };
 
   /* ---------------- DAILY ATTENDANCE LIST (branch + company wise) ---------------- */
@@ -133,7 +161,7 @@ const AttendanceList = () => {
         const baseUrl =
           userType === 'present' ? ATTENDANCE_PRESENT_API : ATTENDANCE_ABSENT_API;
 
-        const url = `${baseUrl}?branch_id=${selectedBranch}&date=${dateFilter}`;
+        const url = `${baseUrl}?branch_id=${selectedBranch}&date=${dateFilter}&position=${selectedPosition}`;
 
         const response = await fetch(url);
         const result = await response.json();
@@ -161,7 +189,7 @@ const AttendanceList = () => {
       isMounted = false;
       clearTimeout(timeoutId);
     };
-  }, [dateFilter, userType, selectedBranch]);
+  }, [dateFilter, userType, selectedBranch, selectedPosition]);
 
   /* ---------------- EMPLOYEE LIST FOR MODAL (branch wise) ---------------- */
 
@@ -648,7 +676,7 @@ const AttendanceList = () => {
         </div>
       </div>
 
-      {/* FILTER BAR — Company / Branch / Date (replaces old inline-styled flex row) */}
+      {/* FILTER BAR — Company / Branch / Position / Date (replaces old inline-styled flex row) */}
       <div className="filter-bar">
         {/* COMPANY */}
         <div className="form-group">
@@ -684,6 +712,26 @@ const AttendanceList = () => {
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* POSITION */}
+        <div className="form-group">
+          <label>Position</label>
+          <select
+            className="branch-select"
+            value={selectedPosition}
+            onChange={handlePositionChange}
+          // disabled={position.length === 0}
+          >
+            <option value="" disabled>
+              Select Position
+            </option>
+            {position.map((pos) => (
+              <option key={pos.id} value={pos.id}>
+                {pos.position_name}
               </option>
             ))}
           </select>
@@ -758,7 +806,7 @@ const AttendanceList = () => {
       ) : (
         groupByBranch(attendanceData).map((group) => (
           <div className="branch-section" key={group.branch_id ?? 'unassigned'}>
-            
+
             <div className="attendance-content glass-panel">
               <div className="table-responsive">
                 <table className="elegant-table">
