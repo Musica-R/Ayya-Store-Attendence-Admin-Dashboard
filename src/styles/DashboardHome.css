@@ -114,6 +114,31 @@ body {
   color: var(--primary);
 }
 
+
+.welcome-banner {
+    position: relative;
+}
+.settings-icon-corner {
+    position: absolute;
+    top: 30px;
+    right: 46px;
+    background: rgba(184, 184, 184, 0.15);
+    border: none;
+    color: steelblue;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    transition: background 0.2s, transform 0.2s;
+}
+.settings-icon-corner:hover {
+    background: rgba(255,255,255,0.3);
+    transform: rotate(20deg);
+}
+
 .page-subtitle {
   margin-top: 6px;
   color: var(--text-muted);

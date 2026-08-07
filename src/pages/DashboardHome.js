@@ -10,8 +10,8 @@ const DashboardHome = () => {
         late_checkin_count: 0
     });
 
-      const navigate = useNavigate();
-      
+    const navigate = useNavigate();
+
     const [adminData, setAdminData] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -32,7 +32,6 @@ const DashboardHome = () => {
 
         const loadAdminData = () => {
             try {
-                // Check various common local storage keys for dynamic login data
                 const possibleKeys = ['user', 'adminData', 'admin', 'userData', 'authUser'];
                 let foundData = null;
 
@@ -42,7 +41,6 @@ const DashboardHome = () => {
                         try {
                             const parsed = JSON.parse(stored);
                             if (parsed && typeof parsed === 'object') {
-                                // Extract the nested user data if it's wrapped in a token/user object structure
                                 if (parsed.user) {
                                     foundData = parsed.user;
                                 } else {
@@ -54,7 +52,6 @@ const DashboardHome = () => {
                     }
                 }
 
-                // Sets the actual currently logged-in user dynamically!
                 setAdminData(foundData);
             } catch (error) {
                 console.error("Error loading admin data", error);
@@ -101,6 +98,14 @@ const DashboardHome = () => {
     return (
         <div className="dashboard-home">
             <div className="welcome-banner glass-panel fade-in-up">
+
+                <button className="settings-icon-corner" onClick={() => navigate("/admin/settings")} title="Settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+
                 <div className="welcome-content">
                     <div className="welcome-text">
                         <span className="date-badge">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
@@ -167,11 +172,9 @@ const DashboardHome = () => {
                 </div>
 
                 <div className="stat-card glass-panel fade-in-up" style={{ animationDelay: '0.3s' }}>
-
                     <div className="stat-content" onClick={() => navigate("/admin/leave-list")}
                         style={{ cursor: "pointer" }}>
                         <h3>Absent</h3>
-                        
                         <div className="stat-value">{absent_count}</div>
                         <div className="stat-trend negative">Attention Required</div>
                     </div>

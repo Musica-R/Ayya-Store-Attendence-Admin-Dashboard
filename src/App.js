@@ -20,6 +20,10 @@ import CompanyDetails from './pages/CompanyDetails';
 import RaiseTicket from './pages/RaiseTicket';
 import ProtectedRoute from './pages/ProtectedRoute';
 import Payroll from './pages/Payroll';
+import Settings from './pages/Settings';
+import TermsAndConditions from './pages/TermsAndConditions';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import AccountDeletion from './pages/AccountDeletion';
 
 function App() {
 
@@ -39,6 +43,10 @@ function App() {
               )
             }
           />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/account-deletion" element={<AccountDeletion />} />
+
           <Route
             path="/admin"
             element={
@@ -58,6 +66,7 @@ function App() {
             <Route path="add-notification" element={<Notification />} />
             <Route path="add-company" element={<CompanyDetails />} />
             <Route path="raise-ticket" element={<RaiseTicket />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
